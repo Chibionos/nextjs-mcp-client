@@ -28,6 +28,17 @@ export function ChatInterfaceShadcn() {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    const handleShowToolsModal = () => {
+      setShowToolsModal(true);
+    };
+
+    window.addEventListener('showToolsModal', handleShowToolsModal);
+    return () => {
+      window.removeEventListener('showToolsModal', handleShowToolsModal);
+    };
+  }, []);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -96,35 +107,7 @@ export function ChatInterfaceShadcn() {
   return (
     <TooltipProvider>
       <div className="flex flex-col h-full">
-        {/* Header Bar */}
-        <div className="px-6 py-3 border-b bg-muted/30 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Badge variant="secondary" className="gap-1.5">
-                <Brain className="h-3 w-3" />
-                {model.replace('claude-', '').replace('-', ' ')}
-              </Badge>
-              {totalTools > 0 && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowToolsModal(true)}
-                      className="gap-1.5 h-7"
-                    >
-                      <Sparkles className="h-3 w-3" />
-                      {totalTools} tools
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Click to view available tools</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </div>
-          </div>
-        </div>
+        
 
         {/* Messages */}
         <ScrollArea className="flex-1 overflow-y-auto">
@@ -138,7 +121,7 @@ export function ChatInterfaceShadcn() {
                 <h3 className="font-semibold text-lg mb-2">Start a conversation</h3>
                 <p className="text-sm text-muted-foreground max-w-sm">
                   {connectedServers.length === 0 
-                    ? "Connect an MCP server to enable tool usage"
+                    ? "Upload your MCP Server JSON configuration (same format used for Claude Desktop) to start using the chat and send messages with MCP tools"
                     : `${totalTools} tools are ready to help you`}
                 </p>
               </div>

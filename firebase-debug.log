@@ -38,3 +38,19 @@
 [debug] [2025-09-11T06:17:42.832Z] > authorizing via signed-in user (chibivikramathithan@darthwares.com)
 [debug] [2025-09-11T06:17:42.847Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
 [debug] [2025-09-11T06:17:42.847Z] > authorizing via signed-in user (chibivikramathithan@darthwares.com)
+[debug] [2025-09-11T06:36:41.537Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-09-11T06:36:41.540Z] > authorizing via signed-in user (chibivikramathithan@darthwares.com)
+[debug] [2025-09-11T06:36:41.558Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-09-11T06:36:41.558Z] > authorizing via signed-in user (chibivikramathithan@darthwares.com)
+[debug] [2025-09-11T06:54:28.870Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-09-11T06:54:28.873Z] > authorizing via signed-in user (chibivikramathithan@darthwares.com)
+[debug] [2025-09-11T06:54:28.892Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-09-11T06:54:28.892Z] > authorizing via signed-in user (chibivikramathithan@darthwares.com)
+[debug] [2025-09-11T06:54:47.809Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-09-11T06:54:47.812Z] > authorizing via signed-in user (chibivikramathithan@darthwares.com)
+[debug] [2025-09-11T06:54:47.828Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-09-11T06:54:47.828Z] > authorizing via signed-in user (chibivikramathithan@darthwares.com)
+[debug] [2025-09-11T07:13:06.393Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-09-11T07:13:06.396Z] > authorizing via signed-in user (chibivikramathithan@darthwares.com)
+[debug] [2025-09-11T07:13:06.413Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-09-11T07:13:06.413Z] > authorizing via signed-in user (chibivikramathithan@darthwares.com)

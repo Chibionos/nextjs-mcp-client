@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useMCPStore } from '@/lib/stores/mcp-store';
 import { ServerStatus } from '@/lib/types/mcp';
 import { ReconnectAllButton } from './reconnect-all-button';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { 
   Server, 
   Plug, 
@@ -340,7 +342,28 @@ export function ServerManagerShadcn() {
                                         </div>
                                         {tool.description && (
                                           <div className="text-xs text-muted-foreground mt-0.5">
-                                            {tool.description}
+                                            <div className="break-words overflow-wrap-anywhere word-break">
+                                              <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                components={{
+                                                  p: ({ children }) => <p className="break-words whitespace-pre-wrap">{children}</p>,
+                                                  strong: ({ children }) => <strong className="font-semibold break-words">{children}</strong>,
+                                                  code: ({ children }) => (
+                                                    <code className="bg-background px-1 py-0.5 rounded break-all whitespace-pre-wrap">{children}</code>
+                                                  ),
+                                                  ul: ({ children }) => <ul className="list-disc pl-3">{children}</ul>,
+                                                  ol: ({ children }) => <ol className="list-decimal pl-3">{children}</ol>,
+                                                  li: ({ children }) => <li className="mb-0.5 break-words">{children}</li>,
+                                                  a: ({ children, href }) => (
+                                                    <a href={href} className="text-primary hover:underline break-all" target="_blank" rel="noopener noreferrer">
+                                                      {children}
+                                                    </a>
+                                                  ),
+                                                }}
+                                              >
+                                                {tool.description}
+                                              </ReactMarkdown>
+                                            </div>
                                           </div>
                                         )}
                                       </div>
