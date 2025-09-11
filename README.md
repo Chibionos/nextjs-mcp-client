@@ -1,5 +1,8 @@
 # Next.js MCP Client for Claude
 
+<img width="1733" height="992" alt="image" src="https://github.com/user-attachments/assets/9faeb5b0-3193-4ae2-bc2f-025d23aca1c2" />
+<img width="1733" height="992" alt="image" src="https://github.com/user-attachments/assets/661ad6c7-f81b-410b-a82b-41a76db1f885" />
+
 A Next.js application that enables Claude to connect and interact with Model Context Protocol (MCP) servers, following the official MCP documentation and best practices.
 
 ## Features
