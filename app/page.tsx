@@ -1,103 +1,155 @@
-import Image from "next/image";
+'use client';
+
+import { useState } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { 
+  Brain, 
+  Server, 
+  Settings, 
+  MessageSquare,
+  Plug,
+  Upload,
+  RefreshCw,
+  ChevronRight,
+  Sparkles,
+  Code2,
+  Globe,
+  Database
+} from 'lucide-react';
+import { ChatInterfaceShadcn } from '@/components/chat-interface-shadcn';
+import { ServerManagerShadcn } from '@/components/server-manager-shadcn';
+import { ConfigUploaderShadcn } from '@/components/config-uploader-shadcn';
+import { PermissionDialog } from '@/components/permission-dialog';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { useMCPStore } from '@/lib/stores/mcp-store';
+import { cn } from '@/lib/utils';
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const { servers } = useMCPStore();
+  const [activeTab, setActiveTab] = useState("chat");
+  
+  const connectedServers = servers.filter(s => s.status === 'connected');
+  const totalTools = connectedServers.reduce((acc, server) => 
+    acc + (server.capabilities?.tools?.length || 0), 0
+  );
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  return (
+    <div className="h-screen overflow-hidden bg-gradient-to-br from-background via-background to-primary/5">
+      {/* Header */}
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex h-16 items-center px-6 max-w-[1600px] mx-auto w-full">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Brain className="h-8 w-8 text-primary" />
+              <Sparkles className="absolute -right-1 -top-1 h-4 w-4 text-primary animate-pulse" />
+            </div>
+            <div className="flex flex-col">
+              <h1 className="text-lg font-semibold">MCP Client</h1>
+              <p className="text-xs text-muted-foreground">Powered by Claude Sonnet</p>
+            </div>
+          </div>
+          
+          <div className="ml-auto flex items-center gap-4">
+            <div className="flex items-center gap-6 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Server className="h-4 w-4 text-muted-foreground" />
+                  {connectedServers.length > 0 && (
+                    <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                  )}
+                </div>
+                <span className="font-medium">{connectedServers.length}</span>
+                <span className="text-muted-foreground">servers</span>
+              </div>
+              
+              <Separator orientation="vertical" className="h-4" />
+              
+              <div className="flex items-center gap-2">
+                <Code2 className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">{totalTools}</span>
+                <span className="text-muted-foreground">tools</span>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Button variant="outline" size="sm" className="gap-2">
+                <Settings className="h-4 w-4" />
+                Settings
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="px-6 py-4 max-w-[1600px] mx-auto w-full h-[calc(100vh-4rem)] overflow-hidden">
+        <div className="grid gap-4 lg:grid-cols-[1fr_380px] h-full">
+          {/* Chat Area - Left Side */}
+          <Card className="h-full flex flex-col overflow-hidden">
+            <CardHeader className="border-b py-3 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <MessageSquare className="h-5 w-5" />
+                    Chat with Claude
+                  </CardTitle>
+                  <CardDescription className="text-xs mt-1">
+                    Ask questions and use MCP tools to get things done
+                  </CardDescription>
+                </div>
+                {connectedServers.length === 0 && (
+                  <Badge variant="secondary" className="gap-1 text-xs">
+                    <ChevronRight className="h-3 w-3" />
+                    Connect a server to start
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="p-0 flex-1 overflow-hidden">
+              <ChatInterfaceShadcn />
+            </CardContent>
+          </Card>
+
+          {/* Right Sidebar */}
+          <div className="h-full flex flex-col gap-4 overflow-hidden">
+            {/* Configuration Card */}
+            <Card className="flex-shrink-0">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Configuration</CardTitle>
+                  <div className="flex gap-2">
+                    <Badge variant={connectedServers.length > 0 ? "default" : "outline"} className="text-xs">
+                      <Plug className="h-3 w-3 mr-1" />
+                      {connectedServers.length}/{servers.length}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs">
+                      <Code2 className="h-3 w-3 mr-1" />
+                      {totalTools}
+                    </Badge>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ConfigUploaderShadcn />
+              </CardContent>
+            </Card>
+            
+            {/* MCP Servers - Takes remaining space */}
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <ServerManagerShadcn />
+            </div>
+          </div>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+      {/* Permission Dialog */}
+      <PermissionDialog />
     </div>
   );
 }

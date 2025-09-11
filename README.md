@@ -1,36 +1,179 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Next.js MCP Client for Claude
 
-## Getting Started
+A Next.js application that enables Claude to connect and interact with Model Context Protocol (MCP) servers, following the official MCP documentation and best practices.
 
-First, run the development server:
+## Features
 
+- 🔌 **MCP Server Management**: Connect to multiple MCP servers simultaneously
+- 💬 **Claude Integration**: Chat interface with Claude (Opus, Sonnet, Haiku) that can use MCP tools
+- 📁 **Configuration Import**: Upload MCP configuration files (same format as Claude Desktop)
+- 🔐 **Permission Management**: Handle permission requests from MCP servers
+- 🛠️ **Tool Discovery**: Automatically discover and use tools from connected servers
+- 📊 **Server Monitoring**: Real-time status monitoring for all connected servers
+- 🎨 **Modern UI**: Clean, responsive interface built with Tailwind CSS
+
+## Prerequisites
+
+- Node.js 18.x or higher
+- Anthropic API key for Claude access
+- MCP servers to connect to (e.g., filesystem, GitHub, Context7, Perplexity, etc.)
+
+## Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd nextjs-mcp-client
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Create a `.env.local` file:
+```bash
+cp .env.example .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Add your Anthropic API key to `.env.local`:
+```
+ANTHROPIC_API_KEY=your-anthropic-api-key-here
+```
 
-## Learn More
+Optionally, add OpenAI API key if you want to use GPT models:
+```
+OPENAI_API_KEY=your-openai-api-key-here
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Usage
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Start the development server:
+```bash
+npm run dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-## Deploy on Vercel
+3. Upload your MCP configuration file or use the sample configuration:
+   - Click "Download Sample Configuration" to get a template
+   - Modify it with your MCP server settings
+   - Upload the configuration file
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+4. The servers will automatically connect and you can start chatting with Claude
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## MCP Configuration Format
+
+The configuration file follows the same format as Claude Desktop:
+
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/path/to/allowed/directory"
+      ]
+    },
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_TOKEN": "your-github-token"
+      }
+    }
+  }
+}
+```
+
+## Available MCP Servers
+
+You can use any MCP-compatible server. Some official examples:
+
+- `@modelcontextprotocol/server-filesystem` - File system access
+- `@modelcontextprotocol/server-github` - GitHub integration
+- `@modelcontextprotocol/server-gitlab` - GitLab integration
+- `@modelcontextprotocol/server-slack` - Slack integration
+
+## Architecture
+
+The application uses:
+- **Next.js 14** with App Router
+- **TypeScript** for type safety
+- **Zustand** for state management
+- **@modelcontextprotocol/sdk** for MCP client implementation
+- **Anthropic SDK** for Claude integration
+- **OpenAI SDK** (optional) for GPT model support
+- **Tailwind CSS** for styling
+- **Stdio and SSE transports** for MCP server communication
+
+## Security Considerations
+
+- **API Keys**: Never expose your OpenAI API key in the frontend
+- **MCP Servers**: Only connect to trusted MCP servers
+- **Permissions**: Review permission requests carefully before granting
+- **File Access**: Be cautious with filesystem servers - limit access to specific directories
+
+## Development
+
+### Project Structure
+
+```
+├── app/
+│   ├── api/
+│   │   ├── chat-claude/   # Claude chat endpoint
+│   │   ├── chat/          # GPT chat endpoint (optional)
+│   │   └── mcp/           # MCP server management endpoints
+│   └── page.tsx           # Main application page
+├── components/
+│   ├── chat-interface-claude.tsx # Claude chat UI component
+│   ├── chat-interface.tsx # GPT chat UI (optional)
+│   ├── server-manager.tsx # Server management UI
+│   ├── config-uploader.tsx # Configuration upload UI
+│   └── permission-dialog.tsx # Permission request dialog
+├── lib/
+│   ├── mcp/
+│   │   ├── client-manager.ts # Original MCP client
+│   │   └── client-manager-v2.ts # Enhanced MCP client with proper transport handling
+│   ├── stores/
+│   │   └── mcp-store.ts   # Zustand store
+│   └── types/
+│       └── mcp.ts         # TypeScript types
+```
+
+### Adding New Features
+
+1. **New MCP Methods**: Update `client-manager.ts` to add new MCP protocol methods
+2. **UI Components**: Add new components in the `components/` directory
+3. **API Routes**: Add new endpoints in `app/api/` for server-side functionality
+
+## Troubleshooting
+
+### Server Won't Connect
+- Check that the command and args in your configuration are correct
+- Ensure the MCP server package is installed globally or use `npx`
+- Check server logs in the browser console
+
+### Claude Not Responding
+- Verify your Anthropic API key is valid
+- Check that you have Claude API access on your Anthropic account
+- Select a different Claude model if needed (Opus, Sonnet, Haiku)
+- Review the browser console for error messages
+
+### Permission Issues
+- Some MCP servers require specific permissions
+- Grant necessary permissions when prompted
+- Check server documentation for required permissions
+
+## License
+
+MIT
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
