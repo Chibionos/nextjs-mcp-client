@@ -4,7 +4,8 @@
 <img width="1733" height="992" alt="image" src="https://github.com/user-attachments/assets/661ad6c7-f81b-410b-a82b-41a76db1f885" />
 
 A Next.js application that enables Claude to connect and interact with Model Context Protocol (MCP) servers, following the official MCP documentation and best practices.
-Demo Railway app: nextjs-mcp-client-production.up.railway.app
+
+Demo Railway app: [Link](https://nextjs-mcp-client-production.up.railway.app)
 
 Note: The MCP Servers won't start on any serverless NextJs deployment, it has to be deployed as a container to be able to start the servers.
 
