@@ -5,6 +5,15 @@ export const MCPServerConfigSchema = z.object({
   command: z.string(),
   args: z.array(z.string()).optional(),
   env: z.record(z.string()).optional(),
+  headers: z.record(z.string()).optional(),
+  oauth: z.object({
+    authorizationEndpoint: z.string().url(),
+    tokenEndpoint: z.string().url(),
+    clientId: z.string(),
+    clientSecret: z.string().optional(),
+    scope: z.string().optional(),
+    usePKCE: z.boolean().optional().default(true),
+  }).optional(),
 });
 
 export type MCPServerConfig = z.infer<typeof MCPServerConfigSchema>;

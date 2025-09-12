@@ -109,7 +109,23 @@ export class MCPClientManagerV2 {
     // Check if this is an SSE endpoint
     if (config.command.startsWith('http://') || config.command.startsWith('https://')) {
       // SSE transport for HTTP endpoints
-      return new SSEClientTransport(new URL(config.command));
+      const url = new URL(config.command);
+      
+      // If we have headers (like auth), we need to use the proxy
+      if (config.headers && Object.keys(config.headers).length > 0) {
+        // Use proxy endpoint to add headers
+        const proxyUrl = new URL('/api/mcp/sse-proxy', window.location.origin);
+        proxyUrl.searchParams.set('url', config.command);
+        
+        // Add auth header if present
+        if (config.headers['Authorization']) {
+          proxyUrl.searchParams.set('auth', config.headers['Authorization']);
+        }
+        
+        return new SSEClientTransport(proxyUrl);
+      }
+      
+      return new SSEClientTransport(url);
     }
 
     // Default to stdio transport for local processes

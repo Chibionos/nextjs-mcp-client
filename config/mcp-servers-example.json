@@ -1,0 +1,46 @@
+{
+  "mcpServers": {
+    "atlassian-remote": {
+      "command": "https://mcp.atlassian.com/sse",
+      "headers": {},
+      "oauth": {
+        "authorizationEndpoint": "https://auth.atlassian.com/authorize",
+        "tokenEndpoint": "https://auth.atlassian.com/oauth/token",
+        "clientId": "YOUR_CLIENT_ID",
+        "clientSecret": "YOUR_CLIENT_SECRET",
+        "scope": "read:jira-work read:confluence-content.all write:jira-work",
+        "usePKCE": true
+      }
+    },
+    "tavily-remote": {
+      "command": "python",
+      "args": ["-m", "mcp_tavily"],
+      "env": {
+        "TAVILY_API_KEY": "YOUR_TAVILY_API_KEY"
+      }
+    },
+    "jina-remote": {
+      "command": "python",
+      "args": ["-m", "jina_mcp"],
+      "env": {
+        "JINA_API_KEY": "YOUR_JINA_API_KEY"
+      }
+    },
+    "custom-sse-with-token": {
+      "command": "https://your-mcp-server.com/sse",
+      "headers": {
+        "Authorization": "Bearer YOUR_ACCESS_TOKEN"
+      }
+    },
+    "custom-sse-with-oauth": {
+      "command": "https://your-mcp-server.com/sse",
+      "oauth": {
+        "authorizationEndpoint": "https://your-auth.com/oauth/authorize",
+        "tokenEndpoint": "https://your-auth.com/oauth/token",
+        "clientId": "YOUR_CLIENT_ID",
+        "scope": "mcp:read mcp:write",
+        "usePKCE": true
+      }
+    }
+  }
+}

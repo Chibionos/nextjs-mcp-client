@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "python311", "python311Packages.pip", "python311Packages.uvloop"]
+
+[phases.install]
+cmds = [
+    "npm ci",
+    "pip install --user mcp tavily jina-mcp requests"
+]
+
+[start]
+cmd = "npm run start"
