@@ -8,6 +8,8 @@ import {
   ServerCapabilities,
   TransportType
 } from '@/lib/types/mcp';
+import { ConnectionManager } from './connection-manager';
+import { ErrorHandler } from './error-handler';
 
 export interface ConnectionOptions {
   onStatusChange?: (status: ServerStatus) => void;
@@ -19,6 +21,32 @@ export class MCPClientManagerV2 {
   private transports: Map<string, StdioClientTransport | SSEClientTransport> = new Map();
   private serverStates: Map<string, ServerState> = new Map();
   private connectionOptions: Map<string, ConnectionOptions> = new Map();
+  private connectionManager: ConnectionManager;
+
+  constructor() {
+    this.connectionManager = new ConnectionManager();
+    this.setupConnectionManagerListeners();
+  }
+
+  /**
+   * Setup connection manager event listeners
+   */
+  private setupConnectionManagerListeners(): void {
+    // Disable automatic reconnection - only reconnect on actual tool call failures
+    this.connectionManager.on('reconnect-required', async (serverName: string) => {
+      console.log(`Server ${serverName} marked for reconnection (will reconnect on next use)`);
+      // Don't automatically reconnect - wait for actual usage
+    });
+
+    this.connectionManager.on('connection-failed', (serverName: string) => {
+      console.error(`Connection permanently failed for ${serverName}`);
+      this.updateServerState(serverName, {
+        ...this.serverStates.get(serverName)!,
+        status: ServerStatus.ERROR,
+        error: 'Maximum reconnection attempts exceeded',
+      });
+    });
+  }
 
   /**
    * Connect to an MCP server with proper transport handling
@@ -65,6 +93,9 @@ export class MCPClientManagerV2 {
       await client.connect(transport);
       this.clients.set(name, client);
 
+      // Don't register for health monitoring - it's too aggressive
+      // this.connectionManager.registerConnection(name);
+
       // Get server capabilities
       const capabilities = await this.discoverCapabilities(client);
 
@@ -80,22 +111,28 @@ export class MCPClientManagerV2 {
       return serverState;
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`Failed to connect to server ${name}:`, error);
+      // Classify the error
+      const mcpError = ErrorHandler.classifyError(error, name);
+      ErrorHandler.logError(mcpError);
       
       const errorState: ServerState = {
         name,
         config,
         status: ServerStatus.ERROR,
-        error: errorMessage,
+        error: ErrorHandler.formatForUser(mcpError),
       };
       
       this.updateServerState(name, errorState);
       
+      // Check if we should attempt reconnection
+      if (ErrorHandler.shouldReconnect(mcpError)) {
+        this.connectionManager.recordFailure(name, mcpError.message);
+      }
+      
       // Call error handler if provided
       const options = this.connectionOptions.get(name);
       if (options?.onError) {
-        options.onError(error instanceof Error ? error : new Error(errorMessage));
+        options.onError(error instanceof Error ? error : new Error(mcpError.message));
       }
       
       throw error;
@@ -145,15 +182,24 @@ export class MCPClientManagerV2 {
     try {
       // List available tools
       const { tools } = await client.listTools();
+      console.log(`Listed ${tools?.length || 0} tools from server`);
+      
       if (tools && tools.length > 0) {
         capabilities.tools = tools.map(tool => ({
           name: tool.name,
           description: tool.description,
           inputSchema: tool.inputSchema,
         }));
+        console.log('Tools discovered:', tools.map(t => t.name));
       }
-    } catch (error) {
-      console.warn('Failed to list tools:', error);
+    } catch (error: any) {
+      // This should not fail for MCP servers that support tools
+      console.error('Failed to list tools:', error);
+      
+      // If it's not a "method not found" error, this is a real problem
+      if (error?.code !== -32601) {
+        throw error; // Re-throw to prevent connection from succeeding
+      }
     }
 
     try {
@@ -167,8 +213,14 @@ export class MCPClientManagerV2 {
           mimeType: resource.mimeType,
         }));
       }
-    } catch (error) {
-      console.warn('Failed to list resources:', error);
+    } catch (error: any) {
+      // Check if it's just method not supported (expected)
+      if (error?.code === -32601) {
+        // This is fine, server doesn't support resources
+        console.debug('Server does not support resources');
+      } else {
+        console.warn('Failed to list resources:', error);
+      }
     }
 
     try {
@@ -181,8 +233,14 @@ export class MCPClientManagerV2 {
           arguments: prompt.arguments,
         }));
       }
-    } catch (error) {
-      console.warn('Failed to list prompts:', error);
+    } catch (error: any) {
+      // Check if it's just method not supported (expected)
+      if (error?.code === -32601) {
+        // This is fine, server doesn't support prompts
+        console.debug('Server does not support prompts');
+      } else {
+        console.warn('Failed to list prompts:', error);
+      }
     }
 
     return capabilities;
@@ -234,10 +292,16 @@ export class MCPClientManagerV2 {
     }
 
     try {
+      // Don't update activity - health monitoring is disabled
+      // this.connectionManager.updateActivity(serverName);
+      
       const result = await client.callTool({
         name: toolName,
         arguments: args,
       });
+      
+      // Don't update activity - health monitoring is disabled
+      // this.connectionManager.updateActivity(serverName);
 
       // Handle different content types
       const contentArray = result.content as any[];
@@ -256,7 +320,21 @@ export class MCPClientManagerV2 {
       
       return result.content;
     } catch (error) {
-      console.error(`Failed to call tool ${toolName} on server ${serverName}:`, error);
+      // Classify the error
+      const mcpError = ErrorHandler.classifyError(error, serverName);
+      ErrorHandler.logError(mcpError);
+      
+      // Record failure for connection health tracking if recoverable
+      if (ErrorHandler.shouldReconnect(mcpError)) {
+        this.connectionManager.recordFailure(serverName, mcpError.message);
+      }
+      
+      // Don't throw for expected errors (like method not found)
+      if (ErrorHandler.isExpectedError(mcpError)) {
+        console.log(`Skipping unsupported method: ${toolName}`);
+        return null;
+      }
+      
       throw error;
     }
   }
@@ -344,8 +422,17 @@ export class MCPClientManagerV2 {
       throw new Error(`Server ${name} not found`);
     }
 
-    // Disconnect first if connected
+    // If already connected, just return current state
     if (this.isServerConnected(name)) {
+      console.log(`Server ${name} is already connected, skipping reconnection`);
+      return currentState;
+    }
+
+    // Only reconnect if actually disconnected or in error state
+    console.log(`Reconnecting server ${name} (current status: ${currentState.status})`);
+    
+    // Disconnect first if in error state or connected (shouldn't happen)
+    if (currentState.status === ServerStatus.ERROR || this.isServerConnected(name)) {
       await this.disconnectServer(name);
     }
 

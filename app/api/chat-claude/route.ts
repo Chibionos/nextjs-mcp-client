@@ -33,6 +33,15 @@ export async function POST(request: NextRequest) {
     }
 
     const manager = getGlobalClientManager();
+    
+    // Debug: Check server states
+    const serverStates = manager.getAllServerStates();
+    console.log('Server states:', serverStates.map(s => ({
+      name: s.name,
+      status: s.status,
+      toolCount: s.capabilities?.tools?.length || 0
+    })));
+    
     const allTools = manager.getAllTools();
     
     console.log('Available tools from MCP servers:', allTools.length);
@@ -45,8 +54,9 @@ export async function POST(request: NextRequest) {
       input_schema: tool.inputSchema || {
         type: 'object',
         properties: {},
+        required: []
       },
-    }));
+    }))
 
     // Convert messages to Claude format with proper typing
     const claudeMessages = messages.map(msg => ({
@@ -56,10 +66,17 @@ export async function POST(request: NextRequest) {
 
     // Add system message if tools are available
     const systemMessage = claudeTools.length > 0 
-      ? `You have access to ${claudeTools.length} tools from various MCP servers. These include tools from: ${[...new Set(allTools.map(t => t.serverName))].join(', ')}. You can use these tools to help answer questions and perform tasks. When asked about specific servers or tools, use them to provide accurate responses.`
+      ? `You have access to ${claudeTools.length} tools from MCP servers. When users ask questions that require current information, web searches, or data extraction, use the appropriate tools to get real, up-to-date results. Don't describe what you would search for - actually perform the search using the tools.`
       : undefined;
 
     // Create message with tools
+    console.log('Sending request to Claude with:', {
+      model,
+      messageCount: claudeMessages.length,
+      toolCount: claudeTools.length,
+      hasSystem: !!systemMessage,
+    });
+
     const response = await anthropic.messages.create({
       model,
       max_tokens: 4096,
@@ -68,13 +85,23 @@ export async function POST(request: NextRequest) {
       system: systemMessage,
     });
 
+    console.log('Claude response:', {
+      stop_reason: response.stop_reason,
+      content_types: response.content.map(b => b.type),
+      usage: response.usage,
+      full_content: JSON.stringify(response.content, null, 2)
+    });
+
     // Handle tool use
-    if (response.content.some(block => block.type === 'tool_use')) {
+    if (response.stop_reason === 'tool_use' || response.content.some(block => block.type === 'tool_use')) {
+      console.log('Tool use detected, executing tools...');
       const toolResults = [];
       
       for (const block of response.content) {
         if (block.type === 'tool_use') {
           const toolUse = block as any;
+          console.log(`Executing tool: ${toolUse.name} with input:`, toolUse.input);
+          
           try {
             // Parse server name and tool name
             const [serverName, ...toolNameParts] = toolUse.name.split('__');
@@ -82,14 +109,15 @@ export async function POST(request: NextRequest) {
             
             // Call the tool through MCP
             const result = await manager.callTool(serverName, toolName, toolUse.input);
+            console.log(`Tool ${toolUse.name} result:`, result);
             
             toolResults.push({
               type: 'tool_result',
               tool_use_id: toolUse.id,
-              content: typeof result === 'string' ? result : JSON.stringify(result),
+              content: typeof result === 'string' ? result : JSON.stringify(result, null, 2),
             });
           } catch (error) {
-            console.error('Tool call error:', error);
+            console.error(`Tool ${toolUse.name} error:`, error);
             toolResults.push({
               type: 'tool_result',
               tool_use_id: toolUse.id,

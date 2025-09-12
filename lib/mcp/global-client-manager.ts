@@ -1,22 +1,18 @@
 import { MCPClientManagerV2 } from './client-manager-v2';
 
-// Global singleton instance
-let globalClientManager: MCPClientManagerV2 | null = null;
+// Declare global type for TypeScript
+declare global {
+  var __mcpClientManager: MCPClientManagerV2 | undefined;
+}
 
 export function getGlobalClientManager(): MCPClientManagerV2 {
-  if (!globalClientManager) {
-    globalClientManager = new MCPClientManagerV2();
-    
-    // Store reference in global scope for Next.js hot reload
-    if (typeof global !== 'undefined') {
-      (global as any).__mcpClientManager = globalClientManager;
-    }
+  // Always check global first - this persists across API route invocations
+  if (!global.__mcpClientManager) {
+    console.log('[MCP] Creating new global client manager instance');
+    global.__mcpClientManager = new MCPClientManagerV2();
+  } else {
+    console.log('[MCP] Using existing global client manager instance');
   }
   
-  // Use cached instance if available (for hot reload)
-  if (typeof global !== 'undefined' && (global as any).__mcpClientManager) {
-    globalClientManager = (global as any).__mcpClientManager;
-  }
-  
-  return globalClientManager!;
+  return global.__mcpClientManager;
 }
