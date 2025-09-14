@@ -1,5 +1,4 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { 
   MCPServerConfig, 
@@ -26,7 +25,7 @@ interface ServerAuthState {
 
 export class MCPClientManagerWithOAuth {
   private clients: Map<string, Client> = new Map();
-  private transports: Map<string, StdioClientTransport | SSEClientTransport> = new Map();
+  private transports: Map<string, any> = new Map();
   private enhancedTransports: Map<string, EnhancedSSETransport> = new Map();
   private serverStates: Map<string, ServerState> = new Map();
   private connectionOptions: Map<string, ConnectionOptions> = new Map();
@@ -256,21 +255,21 @@ export class MCPClientManagerWithOAuth {
   /**
    * Create appropriate transport based on configuration
    */
-  private async createTransport(config: MCPServerConfig, name: string): Promise<StdioClientTransport | SSEClientTransport> {
+  private async createTransport(config: MCPServerConfig, name: string): Promise<any> {
     // Check if this is an SSE endpoint
     if (this.isSSEEndpoint(config.command)) {
       // SSE transport for HTTP endpoints
       const url = new URL(config.command);
-      
+
       // Create enhanced SSE transport with retry and keep-alive
       const enhancedTransport = new EnhancedSSETransport(url, config.headers);
-      
+
       // Set up event handlers
       enhancedTransport.on('error', (error) => {
         console.error(`SSE transport error for ${name}:`, error);
         this.connectionOptions.get(name)?.onError?.(error);
       });
-      
+
       enhancedTransport.on('reconnecting', ({ attempt, delay }) => {
         console.log(`Reconnecting ${name}: attempt ${attempt}, delay ${delay}ms`);
         this.updateServerState(name, {
@@ -278,7 +277,7 @@ export class MCPClientManagerWithOAuth {
           status: ServerStatus.CONNECTING,
         });
       });
-      
+
       enhancedTransport.on('reconnected', () => {
         console.log(`Successfully reconnected to ${name}`);
         this.updateServerState(name, {
@@ -286,11 +285,11 @@ export class MCPClientManagerWithOAuth {
           status: ServerStatus.CONNECTED,
         });
       });
-      
+
       enhancedTransport.on('timeout', () => {
         console.warn(`Connection timeout for ${name}`);
       });
-      
+
       enhancedTransport.on('max_reconnect_exceeded', () => {
         console.error(`Max reconnection attempts exceeded for ${name}`);
         this.updateServerState(name, {
@@ -299,21 +298,26 @@ export class MCPClientManagerWithOAuth {
           error: 'Max reconnection attempts exceeded',
         });
       });
-      
+
       // Store the enhanced transport
       this.enhancedTransports.set(name, enhancedTransport);
-      
+
       // Connect and return the underlying transport
       const transport = await enhancedTransport.connect();
       return transport;
     }
 
-    // Default to stdio transport for local processes
-    return new StdioClientTransport({
-      command: config.command,
-      args: config.args,
-      env: config.env,
-    });
+    // For stdio transport, dynamically import it only on server side
+    if (typeof window === 'undefined') {
+      const { StdioClientTransport } = await import('@modelcontextprotocol/sdk/client/stdio.js');
+      return new StdioClientTransport({
+        command: config.command,
+        args: config.args,
+        env: config.env,
+      });
+    } else {
+      throw new Error('Stdio transport is not supported in the browser. Please use a server-side API route.');
+    }
   }
 
   /**

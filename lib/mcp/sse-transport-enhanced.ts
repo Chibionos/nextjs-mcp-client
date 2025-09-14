@@ -33,8 +33,10 @@ export class EnhancedSSETransport extends EventEmitter {
       // Clear any existing connection
       this.cleanup();
 
-      // Create new transport
-      this.transport = new SSEClientTransport(this.url);
+      // Create new transport with headers
+      this.transport = new SSEClientTransport(this.url, {
+        headers: this.headers
+      });
       
       // Start monitoring
       this.startKeepAlive();

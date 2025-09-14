@@ -1,5 +1,4 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { 
   MCPServerConfig, 
@@ -18,7 +17,7 @@ export interface ConnectionOptions {
 
 export class MCPClientManagerV2 {
   private clients: Map<string, Client> = new Map();
-  private transports: Map<string, StdioClientTransport | SSEClientTransport> = new Map();
+  private transports: Map<string, any> = new Map();
   private serverStates: Map<string, ServerState> = new Map();
   private connectionOptions: Map<string, ConnectionOptions> = new Map();
   private connectionManager: ConnectionManager;
@@ -142,35 +141,40 @@ export class MCPClientManagerV2 {
   /**
    * Create appropriate transport based on configuration
    */
-  private async createTransport(config: MCPServerConfig): Promise<StdioClientTransport | SSEClientTransport> {
+  private async createTransport(config: MCPServerConfig): Promise<any> {
     // Check if this is an SSE endpoint
     if (config.command.startsWith('http://') || config.command.startsWith('https://')) {
       // SSE transport for HTTP endpoints
       const url = new URL(config.command);
-      
+
       // If we have headers (like auth), we need to use the proxy
       if (config.headers && Object.keys(config.headers).length > 0) {
         // Use proxy endpoint to add headers
         const proxyUrl = new URL('/api/mcp/sse-proxy', window.location.origin);
         proxyUrl.searchParams.set('url', config.command);
-        
+
         // Add auth header if present
         if (config.headers['Authorization']) {
           proxyUrl.searchParams.set('auth', config.headers['Authorization']);
         }
-        
+
         return new SSEClientTransport(proxyUrl);
       }
-      
+
       return new SSEClientTransport(url);
     }
 
-    // Default to stdio transport for local processes
-    return new StdioClientTransport({
-      command: config.command,
-      args: config.args,
-      env: config.env,
-    });
+    // For stdio transport, dynamically import it only on server side
+    if (typeof window === 'undefined') {
+      const { StdioClientTransport } = await import('@modelcontextprotocol/sdk/client/stdio.js');
+      return new StdioClientTransport({
+        command: config.command,
+        args: config.args,
+        env: config.env,
+      });
+    } else {
+      throw new Error('Stdio transport is not supported in the browser. Please use a server-side API route.');
+    }
   }
 
   /**

@@ -30,6 +30,7 @@ import { ServerManagerShadcn } from '@/components/server-manager-shadcn';
 import { ConfigUploaderShadcn } from '@/components/config-uploader-shadcn';
 import { PermissionDialog } from '@/components/permission-dialog';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { RemoteMCPLibrarySimple } from '@/components/remote-mcp-library-simple';
 import { useMCPStore } from '@/lib/stores/mcp-store';
 import { cn } from '@/lib/utils';
 
@@ -138,8 +139,14 @@ export default function Home() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
                 <ConfigUploaderShadcn />
+                <div className="flex items-center gap-2">
+                  <Separator className="flex-1" />
+                  <span className="text-xs text-muted-foreground">or</span>
+                  <Separator className="flex-1" />
+                </div>
+                <RemoteMCPLibrarySimple />
               </CardContent>
             </Card>
             
