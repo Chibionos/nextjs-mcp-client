@@ -169,6 +169,18 @@ export async function POST(request: NextRequest) {
           redirectUri,
         });
 
+        console.log('[OAuth] Token exchange response:', {
+          hasAccessToken: !!tokens.access_token,
+          accessTokenLength: tokens.access_token?.length,
+          tokenType: tokens.token_type,
+          expiresIn: tokens.expires_in,
+        });
+
+        if (!tokens.access_token) {
+          console.error('[OAuth] No access token in exchange response!');
+          console.error('[OAuth] Full response:', tokens);
+        }
+
         return NextResponse.json({
           accessToken: tokens.access_token,
           refreshToken: tokens.refresh_token,

@@ -396,15 +396,19 @@ export function RemoteMCPLibrarySimple() {
               }
 
               const tokenData = await exchangeResponse.json();
-              console.log('[OAuth] Token exchange successful, got token:', !!tokenData.accessToken);
+              console.log('[OAuth] Token exchange response from server:', tokenData);
+              console.log('[OAuth] Access token present:', !!tokenData.accessToken);
+              console.log('[OAuth] Access token length:', tokenData.accessToken?.length);
+              console.log('[OAuth] Access token preview:', tokenData.accessToken?.substring(0, 30));
 
               if (!tokenData.accessToken) {
-                console.error('[OAuth] No access token in response:', tokenData);
-                throw new Error('No access token received');
+                console.error('[OAuth] ERROR: No access token in response:', tokenData);
+                console.error('[OAuth] Expected accessToken field but got:', Object.keys(tokenData));
+                throw new Error('No access token received from server');
               }
 
               // Connect with the token
-              console.log('[OAuth] Connecting to server with token...');
+              console.log('[OAuth] Connecting to server with access token:', tokenData.accessToken.substring(0, 30) + '...');
               await connectDirectly(server, tokenData.accessToken);
               toast.success('OAuth authentication successful!');
             } catch (error) {

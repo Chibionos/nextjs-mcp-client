@@ -34,6 +34,9 @@ export class EnhancedSSETransport extends EventEmitter {
       this.cleanup();
 
       // Create new transport with headers
+      console.log('[SSE Transport] Creating with URL:', this.url.toString());
+      console.log('[SSE Transport] Headers:', this.headers);
+
       this.transport = new SSEClientTransport(this.url, {
         headers: this.headers
       });

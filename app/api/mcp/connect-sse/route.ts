@@ -19,6 +19,11 @@ export async function POST(request: NextRequest) {
     console.log(`[MCP] Connecting to remote SSE server: ${name} at ${url}`);
     console.log(`[MCP] Auth token provided: ${!!authToken}`);
 
+    if (authToken) {
+      console.log(`[MCP] Token length: ${authToken.length}`);
+      console.log(`[MCP] Token preview: ${authToken.substring(0, 20)}...`);
+    }
+
     const clientManager = getGlobalClientManager();
 
     // Create headers with authentication if provided
@@ -29,6 +34,7 @@ export async function POST(request: NextRequest) {
     if (authToken) {
       headers['Authorization'] = `Bearer ${authToken}`;
       console.log(`[MCP] Adding Bearer token to headers`);
+      console.log(`[MCP] Full Authorization header: ${headers['Authorization'].substring(0, 30)}...`);
     }
 
     // Create URL object

@@ -142,8 +142,17 @@ export class MCPClientManagerV2 {
    * Create appropriate transport based on configuration
    */
   private async createTransport(config: MCPServerConfig): Promise<any> {
+    // Check if this is a remote SSE server (has url instead of command)
+    if (config.type === 'remote-sse' && config.url) {
+      console.log('[MCPClientManagerV2] Creating transport for remote SSE server:', config.url);
+
+      // For remote SSE servers, we should not use this manager
+      // They should use the connect-sse endpoint directly
+      throw new Error('Remote SSE servers should use /api/mcp/connect-sse endpoint');
+    }
+
     // Check if this is an SSE endpoint
-    if (config.command.startsWith('http://') || config.command.startsWith('https://')) {
+    if (config.command && (config.command.startsWith('http://') || config.command.startsWith('https://'))) {
       // SSE transport for HTTP endpoints
       const url = new URL(config.command);
 
@@ -165,13 +174,15 @@ export class MCPClientManagerV2 {
     }
 
     // For stdio transport, dynamically import it only on server side
-    if (typeof window === 'undefined') {
+    if (config.command && typeof window === 'undefined') {
       const { StdioClientTransport } = await import('@modelcontextprotocol/sdk/client/stdio.js');
       return new StdioClientTransport({
         command: config.command,
         args: config.args,
         env: config.env,
       });
+    } else if (!config.command) {
+      throw new Error('No command specified for server configuration');
     } else {
       throw new Error('Stdio transport is not supported in the browser. Please use a server-side API route.');
     }
