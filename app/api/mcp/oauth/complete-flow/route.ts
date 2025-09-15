@@ -160,24 +160,13 @@ export async function POST(request: NextRequest) {
         console.log('[OAuth] CodeVerifier length:', codeVerifier?.length);
         console.log('[OAuth] Using serverUrl:', originalServerUrl || serverUrl);
 
-        // Check if the code looks like it's already an access token (MCP servers sometimes return the token directly)
-        const codeParts = code.split(':');
-        const looksLikeToken = codeParts.length >= 3 && codeParts.every((part: string) => part.length > 0);
-
-        console.log('[OAuth] Code parts:', codeParts.length, 'Looks like token:', looksLikeToken);
+        // Always do proper token exchange - never use the code directly
         console.log('[OAuth] Code preview:', code.substring(0, 50));
 
         let tokens: any = null;
 
-        if (looksLikeToken) {
-          // Some MCP servers return the access token directly as the code
-          console.log('[OAuth] Code appears to be access token format, using directly...');
-          tokens = {
-            access_token: code,
-            token_type: 'bearer',
-            expires_in: 3600, // Assume 1 hour default
-          };
-        } else {
+        // Always attempt proper token exchange
+        {
           // Try manual token exchange first to debug
           console.log('[OAuth] Attempting manual token exchange...');
 
@@ -205,13 +194,27 @@ export async function POST(request: NextRequest) {
             });
 
             console.log('[OAuth] Manual token exchange response status:', tokenResponse.status);
-            const tokenData = await tokenResponse.json();
-            console.log('[OAuth] Manual token exchange response:', tokenData);
+            const responseText = await tokenResponse.text();
+            console.log('[OAuth] Manual token exchange raw response:', responseText);
 
-            if (tokenResponse.ok && tokenData.access_token) {
-              tokens = tokenData;
-              console.log('[OAuth] Manual token exchange successful!');
-            } else {
+            try {
+              const tokenData = JSON.parse(responseText);
+              console.log('[OAuth] Manual token exchange parsed response:', tokenData);
+
+              if (tokenResponse.ok && tokenData.access_token) {
+                tokens = tokenData;
+                console.log('[OAuth] Manual token exchange successful!');
+                console.log('[OAuth] Access token from manual exchange:', tokenData.access_token);
+              } else {
+                console.log('[OAuth] Manual token exchange failed with:', tokenData);
+                console.log('[OAuth] Error in response:', tokenData.error, tokenData.error_description);
+              }
+            } catch (parseError) {
+              console.error('[OAuth] Failed to parse token response:', parseError);
+              console.log('[OAuth] Raw response was:', responseText);
+            }
+
+            if (!tokens) {
               console.log('[OAuth] Manual token exchange failed, falling back to SDK...');
             }
           } catch (manualError) {

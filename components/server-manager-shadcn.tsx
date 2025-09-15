@@ -78,21 +78,48 @@ export function ServerManagerShadcn() {
     updateServerStatus(name, ServerStatus.CONNECTING);
 
     try {
-      const response = await fetch('/api/mcp/connect-v2', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name }),
-      });
+      // Check if this is a remote SSE server
+      const isRemoteSSE = server.config?.type === 'remote-sse' || server.config?.url;
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to reconnect');
+      if (isRemoteSSE) {
+        // For remote SSE servers, use the connect-sse endpoint
+        const response = await fetch('/api/mcp/connect-sse', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: server.name,
+            url: server.config.url,
+            authToken: server.config.authToken,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to reconnect');
+        }
+
+        const data = await response.json();
+        addServer(data.server);
+      } else {
+        // For local servers, use the connect-v2 endpoint
+        const response = await fetch('/api/mcp/connect-v2', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to reconnect');
+        }
+
+        const data = await response.json();
+        addServer(data.server);
       }
-
-      const data = await response.json();
-      addServer(data.server);
     } catch (error) {
       updateServerStatus(name, ServerStatus.ERROR, error instanceof Error ? error.message : 'Failed to reconnect');
     } finally {

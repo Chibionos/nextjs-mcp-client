@@ -37,6 +37,7 @@ import {
 import { useMCPStore } from '@/lib/stores/mcp-store';
 import { MCPServerConfig, ServerStatus } from '@/lib/types/mcp';
 import { toast } from 'sonner';
+import { tokenStorage } from '@/lib/utils/token-storage';
 
 interface RemoteMCPServer {
   name: string;
@@ -169,8 +170,22 @@ export function RemoteMCPLibrarySimple() {
       return;
     }
 
-    // Handle different authentication types
+    // Check for stored token first for OAuth servers
     if (server.authentication === 'OAuth2.1 🔐' || server.authentication === 'OAuth2.1') {
+      const storedToken = tokenStorage.getToken(server.name);
+      if (storedToken) {
+        console.log(`[AddServer] Found stored token for ${server.name}, attempting to connect...`);
+        try {
+          await connectDirectly(server, storedToken.accessToken);
+          toast.success(`Connected using stored token!`);
+          return;
+        } catch (error) {
+          console.log(`[AddServer] Stored token failed, will reauthenticate:`, error);
+          tokenStorage.removeToken(server.name);
+          // Continue to OAuth flow
+        }
+      }
+
       // Start OAuth flow for all OAuth servers
       console.log('[Connect] Starting OAuth flow for:', server.name);
       setSelectedServer(server);
@@ -424,6 +439,35 @@ export function RemoteMCPLibrarySimple() {
               console.log('[OAuth] About to connect with token:', tokenToUse);
               console.log('[OAuth] Token starts with:', tokenToUse.substring(0, 50));
               console.log('[OAuth] Token is same as code?', tokenToUse === event.data.code);
+
+              // First test the SSE connection
+              console.log('[OAuth] Testing SSE connection first...');
+              const testResponse = await fetch('/api/mcp/test-sse', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  url: server.url,
+                  authToken: tokenToUse,
+                }),
+              });
+
+              const testResult = await testResponse.json();
+              console.log('[OAuth] SSE test result:', testResult);
+
+              if (!testResponse.ok && testResult.status === 401) {
+                console.error('[OAuth] SSE test failed with 401, token may be invalid');
+                throw new Error('Authentication failed during SSE test');
+              }
+
+              // Store the token for future use
+              tokenStorage.storeToken(
+                server.name,
+                server.url,
+                tokenToUse,
+                tokenData.expiresIn,
+                tokenData.refreshToken
+              );
+              console.log('[OAuth] Token stored for future use');
 
               // Connect with the token
               await connectDirectly(server, tokenToUse);

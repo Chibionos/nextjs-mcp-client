@@ -102,25 +102,50 @@ export async function POST(request: NextRequest) {
     
   } catch (error) {
     console.error('[MCP] Failed to connect to SSE server:', error);
-    
+    console.error('[MCP] Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+
     // Provide more specific error messages
     let errorMessage = 'Failed to connect to server';
-    
+    let statusCode = 500;
+
     if (error instanceof Error) {
+      // Log the full error for debugging
+      console.error('[MCP] Full error object:', error);
+
       if (error.message.includes('401') || error.message.includes('Unauthorized')) {
         errorMessage = 'Authentication failed. Please check your access token.';
+        statusCode = 401;
+      } else if (error.message.includes('403') || error.message.includes('Forbidden')) {
+        errorMessage = 'Access forbidden. The token may not have sufficient permissions.';
+        statusCode = 403;
       } else if (error.message.includes('404')) {
         errorMessage = 'Server endpoint not found. Please check the URL.';
-      } else if (error.message.includes('network')) {
-        errorMessage = 'Network error. Please check your connection.';
+        statusCode = 404;
+      } else if (error.message.includes('network') || error.message.includes('ECONNREFUSED')) {
+        errorMessage = 'Network error. Please check your connection and server URL.';
+        statusCode = 503;
+      } else if (error.message.includes('timeout') || error.message.includes('Timeout')) {
+        errorMessage = 'Connection timeout. The server may be slow or unresponsive.';
+        statusCode = 504;
       } else {
+        // Use the actual error message for debugging
         errorMessage = error.message;
       }
     }
-    
+
     return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
+      {
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? {
+          originalError: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        } : undefined,
+      },
+      { status: statusCode }
     );
   }
 }
