@@ -10,6 +10,7 @@ import type {
   OAuthClientMetadata,
 } from "@modelcontextprotocol/sdk/shared/auth.js";
 import { type NextRequest, NextResponse } from "next/server";
+import { getAppUrl } from "@/lib/utils/app-url";
 
 // Generate state
 function generateState() {
@@ -72,7 +73,8 @@ export async function POST(request: NextRequest) {
       case "register": {
         // Step 2: Register client (dynamic registration)
         const { metadata, scope } = data;
-        const redirectUri = `${request.headers.get("origin")}/api/mcp/oauth/callback`;
+        const appUrl = getAppUrl();
+        const redirectUri = `${appUrl}/oauth/callback`;
 
         const clientMetadata: OAuthClientMetadata = {
           redirect_uris: [redirectUri],
@@ -80,7 +82,7 @@ export async function POST(request: NextRequest) {
           grant_types: ["authorization_code", "refresh_token"],
           response_types: ["code"],
           client_name: "NextJS MCP Client",
-          client_uri: request.headers.get("origin") || "http://localhost:3000",
+          client_uri: appUrl,
           scope: scope || "",
         };
 
