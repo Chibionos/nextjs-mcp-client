@@ -1,23 +1,36 @@
-'use client';
+"use client";
 
-import { useState, useRef } from 'react';
-import { useMCPStore } from '@/lib/stores/mcp-store';
-import { MCPConfiguration, MCPConfigurationSchema, ServerStatus } from '@/lib/types/mcp';
-import { Upload, FileJson, AlertCircle, CheckCircle, Download, FileCode } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import {
+  AlertCircle,
+  CheckCircle,
+  Download,
+  FileCode,
+  FileJson,
+  Upload,
+} from "lucide-react";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { useMCPStore } from "@/lib/stores/mcp-store";
+import {
+  type MCPConfiguration,
+  MCPConfigurationSchema,
+  ServerStatus,
+} from "@/lib/types/mcp";
+import { cn } from "@/lib/utils";
 
 export function ConfigUploaderShadcn() {
-  const { 
-    configuration, 
-    setConfiguration, 
-    addServer, 
-    updateServerStatus 
-  } = useMCPStore();
+  const { configuration, setConfiguration, addServer, updateServerStatus } =
+    useMCPStore();
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -57,21 +70,21 @@ export function ConfigUploaderShadcn() {
   };
 
   const handleFile = async (file: File) => {
-    if (!file.name.endsWith('.json')) {
-      toast.error('Please upload a JSON configuration file');
+    if (!file.name.endsWith(".json")) {
+      toast.error("Please upload a JSON configuration file");
       return;
     }
 
     try {
       const text = await file.text();
       const json = JSON.parse(text);
-      
+
       // Validate configuration
       const config = MCPConfigurationSchema.parse(json);
-      
+
       // Set configuration
       setConfiguration(config);
-      
+
       // Add servers to the store
       Object.entries(config.mcpServers).forEach(([name, serverConfig]) => {
         addServer({
@@ -81,18 +94,20 @@ export function ConfigUploaderShadcn() {
         });
       });
 
-      toast.success(`Configuration loaded! ${Object.keys(config.mcpServers).length} servers added.`);
-      
+      toast.success(
+        `Configuration loaded! ${Object.keys(config.mcpServers).length} servers added.`,
+      );
+
       // Auto-connect servers after a short delay
       setTimeout(() => {
         Object.keys(config.mcpServers).forEach(async (name) => {
           try {
             updateServerStatus(name, ServerStatus.CONNECTING);
-            
-            const response = await fetch('/api/mcp/connect-v2', {
-              method: 'POST',
+
+            const response = await fetch("/api/mcp/connect-v2", {
+              method: "POST",
               headers: {
-                'Content-Type': 'application/json',
+                "Content-Type": "application/json",
               },
               body: JSON.stringify({
                 name,
@@ -105,22 +120,21 @@ export function ConfigUploaderShadcn() {
               addServer(data.server);
               toast.success(`Connected to ${name}`);
             } else {
-              updateServerStatus(name, ServerStatus.ERROR, 'Failed to connect');
+              updateServerStatus(name, ServerStatus.ERROR, "Failed to connect");
               toast.error(`Failed to connect to ${name}`);
             }
           } catch (err) {
-            updateServerStatus(name, ServerStatus.ERROR, 'Connection error');
+            updateServerStatus(name, ServerStatus.ERROR, "Connection error");
             toast.error(`Connection error for ${name}`);
           }
         });
       }, 500);
-
     } catch (err) {
-      console.error('Failed to parse configuration:', err);
+      console.error("Failed to parse configuration:", err);
       if (err instanceof Error) {
         toast.error(`Invalid configuration: ${err.message}`);
       } else {
-        toast.error('Invalid configuration file');
+        toast.error("Invalid configuration file");
       }
     }
   };
@@ -128,32 +142,31 @@ export function ConfigUploaderShadcn() {
   const downloadSampleConfig = () => {
     const sampleConfig: MCPConfiguration = {
       mcpServers: {
-        "filesystem": {
+        filesystem: {
           command: "npx",
           args: [
             "-y",
             "@modelcontextprotocol/server-filesystem",
-            "/path/to/allowed/directory"
-          ]
-        },
-        "github": {
-          command: "npx",
-          args: [
-            "-y",
-            "@modelcontextprotocol/server-github"
+            "/path/to/allowed/directory",
           ],
+        },
+        github: {
+          command: "npx",
+          args: ["-y", "@modelcontextprotocol/server-github"],
           env: {
-            "GITHUB_TOKEN": "your-github-token"
-          }
-        }
-      }
+            GITHUB_TOKEN: "your-github-token",
+          },
+        },
+      },
     };
 
-    const blob = new Blob([JSON.stringify(sampleConfig, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(sampleConfig, null, 2)], {
+      type: "application/json",
+    });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'mcp-config-sample.json';
+    a.download = "mcp-config-sample.json";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -167,7 +180,7 @@ export function ConfigUploaderShadcn() {
           "relative rounded-lg border-2 border-dashed p-4 transition-colors",
           isDragging
             ? "border-primary bg-primary/5"
-            : "border-muted-foreground/25 hover:border-muted-foreground/50"
+            : "border-muted-foreground/25 hover:border-muted-foreground/50",
         )}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}

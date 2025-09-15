@@ -1,11 +1,15 @@
+# Railway deployment configuration
 [phases.setup]
-nixPkgs = ["nodejs_20", "python311", "python311Packages.pip", "python311Packages.uvloop"]
+nixPkgs = ["nodejs_20"]
 
 [phases.install]
-cmds = [
-    "npm ci",
-    "pip install --user mcp tavily jina-mcp requests"
-]
+cmds = ["npm ci --prefer-offline --no-audit"]
+
+[phases.build]
+cmds = ["npm run build"]
 
 [start]
 cmd = "npm run start"
+
+[variables]
+NODE_ENV = "production"

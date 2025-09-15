@@ -1,4 +1,9 @@
-import { OAuthConfig, OAuthState, OAuthTokenResponse, AuthResult } from '@/lib/types/oauth';
+import type {
+  AuthResult,
+  OAuthConfig,
+  OAuthState,
+  OAuthTokenResponse,
+} from "@/lib/types/oauth";
 
 /**
  * OAuth Service for handling authentication flows
@@ -20,16 +25,19 @@ export class OAuthService {
   /**
    * Generate PKCE code verifier and challenge
    */
-  private async generatePKCE(): Promise<{ verifier: string; challenge: string }> {
+  private async generatePKCE(): Promise<{
+    verifier: string;
+    challenge: string;
+  }> {
     const verifier = this.generateRandomString(128);
     const encoder = new TextEncoder();
     const data = encoder.encode(verifier);
-    const digest = await crypto.subtle.digest('SHA-256', data);
+    const digest = await crypto.subtle.digest("SHA-256", data);
     const challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
-    
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=/g, "");
+
     return { verifier, challenge };
   }
 
@@ -37,24 +45,28 @@ export class OAuthService {
    * Generate random string for state and PKCE
    */
   private generateRandomString(length: number): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
     const array = new Uint8Array(length);
     crypto.getRandomValues(array);
-    return Array.from(array, byte => chars[byte % chars.length]).join('');
+    return Array.from(array, (byte) => chars[byte % chars.length]).join("");
   }
 
   /**
    * Start OAuth authentication flow
    */
-  async startAuthFlow(serverName: string, config: OAuthConfig): Promise<AuthResult> {
+  async startAuthFlow(
+    serverName: string,
+    config: OAuthConfig,
+  ): Promise<AuthResult> {
     try {
       // Generate state for CSRF protection
       const state = this.generateRandomString(32);
-      
+
       // Generate PKCE if enabled
       let codeVerifier: string | undefined;
       let codeChallenge: string | undefined;
-      
+
       if (config.usePKCE) {
         const pkce = await this.generatePKCE();
         codeVerifier = pkce.verifier;
@@ -73,28 +85,27 @@ export class OAuthService {
 
       // Build authorization URL
       const authUrl = new URL(config.authorizationEndpoint);
-      authUrl.searchParams.set('client_id', config.clientId);
-      authUrl.searchParams.set('redirect_uri', config.redirectUri);
-      authUrl.searchParams.set('response_type', config.responseType || 'code');
-      authUrl.searchParams.set('state', state);
-      
+      authUrl.searchParams.set("client_id", config.clientId);
+      authUrl.searchParams.set("redirect_uri", config.redirectUri);
+      authUrl.searchParams.set("response_type", config.responseType || "code");
+      authUrl.searchParams.set("state", state);
+
       if (config.scope) {
-        authUrl.searchParams.set('scope', config.scope);
+        authUrl.searchParams.set("scope", config.scope);
       }
-      
+
       if (codeChallenge) {
-        authUrl.searchParams.set('code_challenge', codeChallenge);
-        authUrl.searchParams.set('code_challenge_method', 'S256');
+        authUrl.searchParams.set("code_challenge", codeChallenge);
+        authUrl.searchParams.set("code_challenge_method", "S256");
       }
 
       // Open authentication popup
       return await this.openAuthPopup(serverName, authUrl.toString(), config);
-      
     } catch (error) {
-      console.error('OAuth flow error:', error);
+      console.error("OAuth flow error:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Authentication failed',
+        error: error instanceof Error ? error.message : "Authentication failed",
       };
     }
   }
@@ -103,9 +114,9 @@ export class OAuthService {
    * Open authentication popup window
    */
   private async openAuthPopup(
-    serverName: string, 
-    authUrl: string, 
-    config: OAuthConfig
+    serverName: string,
+    authUrl: string,
+    config: OAuthConfig,
   ): Promise<AuthResult> {
     return new Promise((resolve) => {
       // Calculate popup position
@@ -124,13 +135,14 @@ export class OAuthService {
       const authWindow = window.open(
         authUrl,
         `mcp-auth-${serverName}`,
-        `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no`
+        `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no`,
       );
 
       if (!authWindow) {
         resolve({
           success: false,
-          error: 'Failed to open authentication window. Please check popup blockers.',
+          error:
+            "Failed to open authentication window. Please check popup blockers.",
         });
         return;
       }
@@ -142,7 +154,7 @@ export class OAuthService {
         if (authWindow.closed) {
           clearInterval(pollInterval);
           this.authWindows.delete(serverName);
-          
+
           // Check if we have a pending auth completion
           const pendingResult = this.getPendingAuthResult(serverName);
           if (pendingResult) {
@@ -150,7 +162,7 @@ export class OAuthService {
           } else {
             resolve({
               success: false,
-              error: 'Authentication window was closed',
+              error: "Authentication window was closed",
             });
           }
         }
@@ -159,16 +171,16 @@ export class OAuthService {
       // Listen for messages from callback page
       const messageHandler = async (event: MessageEvent) => {
         if (event.origin !== window.location.origin) return;
-        
-        if (event.data.type === 'oauth-callback') {
+
+        if (event.data.type === "oauth-callback") {
           const { code, state, error } = event.data;
-          
+
           if (error) {
-            window.removeEventListener('message', messageHandler);
+            window.removeEventListener("message", messageHandler);
             clearInterval(pollInterval);
             authWindow.close();
             this.authWindows.delete(serverName);
-            
+
             resolve({
               success: false,
               error: error,
@@ -181,7 +193,7 @@ export class OAuthService {
           if (!oauthState || oauthState.serverName !== serverName) {
             resolve({
               success: false,
-              error: 'Invalid state parameter',
+              error: "Invalid state parameter",
             });
             return;
           }
@@ -190,10 +202,10 @@ export class OAuthService {
           const tokenResult = await this.exchangeCodeForToken(
             code,
             config,
-            oauthState.codeVerifier
+            oauthState.codeVerifier,
           );
 
-          window.removeEventListener('message', messageHandler);
+          window.removeEventListener("message", messageHandler);
           clearInterval(pollInterval);
           authWindow.close();
           this.authWindows.delete(serverName);
@@ -203,7 +215,7 @@ export class OAuthService {
         }
       };
 
-      window.addEventListener('message', messageHandler);
+      window.addEventListener("message", messageHandler);
     });
   }
 
@@ -213,13 +225,13 @@ export class OAuthService {
   private async exchangeCodeForToken(
     code: string,
     config: OAuthConfig,
-    codeVerifier?: string
+    codeVerifier?: string,
   ): Promise<AuthResult> {
     try {
-      const response = await fetch('/api/oauth/token', {
-        method: 'POST',
+      const response = await fetch("/api/oauth/token", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           code,
@@ -227,7 +239,7 @@ export class OAuthService {
           clientSecret: config.clientSecret,
           redirectUri: config.redirectUri,
           tokenEndpoint: config.tokenEndpoint,
-          grantType: config.grantType || 'authorization_code',
+          grantType: config.grantType || "authorization_code",
           codeVerifier,
         }),
       });
@@ -245,10 +257,10 @@ export class OAuthService {
         expiresIn: data.expires_in,
       };
     } catch (error) {
-      console.error('Token exchange error:', error);
+      console.error("Token exchange error:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Token exchange failed',
+        error: error instanceof Error ? error.message : "Token exchange failed",
       };
     }
   }
@@ -258,13 +270,13 @@ export class OAuthService {
    */
   async refreshAccessToken(
     refreshToken: string,
-    config: OAuthConfig
+    config: OAuthConfig,
   ): Promise<AuthResult> {
     try {
-      const response = await fetch('/api/oauth/refresh', {
-        method: 'POST',
+      const response = await fetch("/api/oauth/refresh", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           refreshToken,
@@ -287,10 +299,10 @@ export class OAuthService {
         expiresIn: data.expires_in,
       };
     } catch (error) {
-      console.error('Token refresh error:', error);
+      console.error("Token refresh error:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Token refresh failed',
+        error: error instanceof Error ? error.message : "Token refresh failed",
       };
     }
   }
@@ -299,20 +311,23 @@ export class OAuthService {
    * Handle OAuth callback
    */
   handleCallback(params: URLSearchParams): void {
-    const code = params.get('code');
-    const state = params.get('state');
-    const error = params.get('error');
-    const errorDescription = params.get('error_description');
+    const code = params.get("code");
+    const state = params.get("state");
+    const error = params.get("error");
+    const errorDescription = params.get("error_description");
 
     // Send message to opener window
     if (window.opener) {
-      window.opener.postMessage({
-        type: 'oauth-callback',
-        code,
-        state,
-        error: error ? `${error}: ${errorDescription || ''}` : undefined,
-      }, window.location.origin);
-      
+      window.opener.postMessage(
+        {
+          type: "oauth-callback",
+          code,
+          state,
+          error: error ? `${error}: ${errorDescription || ""}` : undefined,
+        },
+        window.location.origin,
+      );
+
       // Close the callback window
       window.close();
     }
@@ -336,7 +351,7 @@ export class OAuthService {
       authWindow.close();
     }
     this.authWindows.delete(serverName);
-    
+
     // Clear any pending states for this server
     for (const [state, oauthState] of this.pendingStates.entries()) {
       if (oauthState.serverName === serverName) {

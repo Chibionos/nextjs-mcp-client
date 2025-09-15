@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 // OAuth Configuration Schema
 export const OAuthConfigSchema = z.object({
@@ -7,9 +7,9 @@ export const OAuthConfigSchema = z.object({
   clientId: z.string(),
   clientSecret: z.string().optional(),
   redirectUri: z.string().url(),
-  scope: z.string().optional().default('read write'),
-  responseType: z.string().optional().default('code'),
-  grantType: z.string().optional().default('authorization_code'),
+  scope: z.string().optional().default("read write"),
+  responseType: z.string().optional().default("code"),
+  grantType: z.string().optional().default("authorization_code"),
   usePKCE: z.boolean().optional().default(true),
 });
 
@@ -45,11 +45,11 @@ export interface SSEConfigWithAuth {
 
 // Authentication Status
 export enum AuthStatus {
-  UNAUTHENTICATED = 'unauthenticated',
-  AUTHENTICATING = 'authenticating',
-  AUTHENTICATED = 'authenticated',
-  ERROR = 'error',
-  REFRESHING = 'refreshing',
+  UNAUTHENTICATED = "unauthenticated",
+  AUTHENTICATING = "authenticating",
+  AUTHENTICATED = "authenticated",
+  ERROR = "error",
+  REFRESHING = "refreshing",
 }
 
 // Authentication Result

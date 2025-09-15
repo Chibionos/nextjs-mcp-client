@@ -7,29 +7,35 @@ interface StoredToken {
 }
 
 class TokenStorage {
-  private readonly STORAGE_KEY = 'mcp_oauth_tokens';
+  private readonly STORAGE_KEY = "mcp_oauth_tokens";
 
   /**
    * Store a token for a server
    */
-  storeToken(serverName: string, serverUrl: string, accessToken: string, expiresIn?: number, refreshToken?: string): void {
+  storeToken(
+    serverName: string,
+    serverUrl: string,
+    accessToken: string,
+    expiresIn?: number,
+    refreshToken?: string,
+  ): void {
     try {
       const tokens = this.getAllTokens();
 
       tokens[serverName] = {
         accessToken,
         refreshToken,
-        expiresAt: expiresIn ? Date.now() + (expiresIn * 1000) : undefined,
+        expiresAt: expiresIn ? Date.now() + expiresIn * 1000 : undefined,
         serverUrl,
         serverName,
       };
 
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(tokens));
         console.log(`[TokenStorage] Stored token for ${serverName}`);
       }
     } catch (error) {
-      console.error('[TokenStorage] Failed to store token:', error);
+      console.error("[TokenStorage] Failed to store token:", error);
     }
   }
 
@@ -54,7 +60,7 @@ class TokenStorage {
 
       return token;
     } catch (error) {
-      console.error('[TokenStorage] Failed to get token:', error);
+      console.error("[TokenStorage] Failed to get token:", error);
       return null;
     }
   }
@@ -67,12 +73,12 @@ class TokenStorage {
       const tokens = this.getAllTokens();
       delete tokens[serverName];
 
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(tokens));
         console.log(`[TokenStorage] Removed token for ${serverName}`);
       }
     } catch (error) {
-      console.error('[TokenStorage] Failed to remove token:', error);
+      console.error("[TokenStorage] Failed to remove token:", error);
     }
   }
 
@@ -80,7 +86,7 @@ class TokenStorage {
    * Get all stored tokens
    */
   private getAllTokens(): Record<string, StoredToken> {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       return {};
     }
 
@@ -88,7 +94,7 @@ class TokenStorage {
       const stored = localStorage.getItem(this.STORAGE_KEY);
       return stored ? JSON.parse(stored) : {};
     } catch (error) {
-      console.error('[TokenStorage] Failed to parse stored tokens:', error);
+      console.error("[TokenStorage] Failed to parse stored tokens:", error);
       return {};
     }
   }
@@ -98,12 +104,12 @@ class TokenStorage {
    */
   clearAll(): void {
     try {
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         localStorage.removeItem(this.STORAGE_KEY);
-        console.log('[TokenStorage] Cleared all tokens');
+        console.log("[TokenStorage] Cleared all tokens");
       }
     } catch (error) {
-      console.error('[TokenStorage] Failed to clear tokens:', error);
+      console.error("[TokenStorage] Failed to clear tokens:", error);
     }
   }
 }

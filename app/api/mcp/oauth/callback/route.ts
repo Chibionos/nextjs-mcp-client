@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const code = searchParams.get('code');
-    const state = searchParams.get('state');
-    const error = searchParams.get('error');
-    const errorDescription = searchParams.get('error_description');
+    const code = searchParams.get("code");
+    const state = searchParams.get("state");
+    const error = searchParams.get("error");
+    const errorDescription = searchParams.get("error_description");
 
     // Create a simple HTML page that communicates with the opener window
     const html = `
@@ -40,15 +40,21 @@ export async function GET(request: NextRequest) {
       </head>
       <body>
         <div class="container">
-          ${error ? `
+          ${
+            error
+              ? `
             <h1 class="error">❌ Authorization Failed</h1>
             <p class="message">${errorDescription || error}</p>
-          ` : code ? `
+          `
+              : code
+                ? `
             <h1 class="success">✅ Authorization Successful</h1>
             <p class="message">Completing authentication...</p>
-          ` : `
+          `
+                : `
             <h1>Processing...</h1>
-          `}
+          `
+          }
         </div>
         <script>
           // Send the OAuth callback data to the opener window
@@ -61,7 +67,7 @@ export async function GET(request: NextRequest) {
 
           console.log('[OAuth Callback] Page loaded with params:', params);
           console.log('[OAuth Callback] Window opener exists:', !!window.opener);
-          console.log('[OAuth Callback] Origin:', '${request.headers.get('origin')}');
+          console.log('[OAuth Callback] Origin:', '${request.headers.get("origin")}');
 
           if (window.opener) {
             try {
@@ -69,7 +75,7 @@ export async function GET(request: NextRequest) {
               window.opener.postMessage({
                 type: 'oauth-callback',
                 ...params
-              }, '${request.headers.get('origin') || '*'}');
+              }, '${request.headers.get("origin") || "*"}');
               console.log('[OAuth Callback] Message sent successfully');
 
               // Update UI to show success
@@ -101,14 +107,14 @@ export async function GET(request: NextRequest) {
 
     return new NextResponse(html, {
       headers: {
-        'Content-Type': 'text/html',
+        "Content-Type": "text/html",
       },
     });
   } catch (error) {
-    console.error('[OAuth] Callback error:', error);
+    console.error("[OAuth] Callback error:", error);
     return NextResponse.json(
-      { error: 'OAuth callback failed' },
-      { status: 500 }
+      { error: "OAuth callback failed" },
+      { status: 500 },
     );
   }
 }

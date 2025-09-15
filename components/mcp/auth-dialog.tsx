@@ -1,6 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
+import { AlertCircle, ExternalLink, Lock } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -8,12 +11,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ExternalLink, Lock, AlertCircle } from 'lucide-react';
-import { OAuthService } from '@/lib/services/oauth-service';
-import { MCPServerConfig } from '@/lib/types/mcp';
+} from "@/components/ui/dialog";
+import { OAuthService } from "@/lib/services/oauth-service";
+import type { MCPServerConfig } from "@/lib/types/mcp";
 
 interface AuthDialogProps {
   isOpen: boolean;
@@ -50,7 +50,7 @@ export function AuthDialog({
 
   const handleAuthenticate = async () => {
     if (!serverConfig?.oauth) {
-      setError('OAuth configuration is missing');
+      setError("OAuth configuration is missing");
       return;
     }
 
@@ -65,20 +65,23 @@ export function AuthDialog({
         clientId: serverConfig.oauth.clientId,
         clientSecret: serverConfig.oauth.clientSecret,
         redirectUri: `${window.location.origin}/oauth/callback`,
-        scope: serverConfig.oauth.scope || 'read write',
+        scope: serverConfig.oauth.scope || "read write",
         usePKCE: serverConfig.oauth.usePKCE !== false,
+        grantType: serverConfig.oauth.grantType || "authorization_code",
+        responseType: serverConfig.oauth.responseType || "code",
       });
 
       if (result.success && result.accessToken) {
         onAuthSuccess(result.accessToken, result.refreshToken);
         onClose();
       } else {
-        const errorMsg = result.error || 'Authentication failed';
+        const errorMsg = result.error || "Authentication failed";
         setError(errorMsg);
         onAuthError(errorMsg);
       }
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Authentication failed';
+      const errorMsg =
+        err instanceof Error ? err.message : "Authentication failed";
       setError(errorMsg);
       onAuthError(errorMsg);
     } finally {
@@ -95,7 +98,8 @@ export function AuthDialog({
             Authentication Required
           </DialogTitle>
           <DialogDescription>
-            The MCP server <strong>{serverName}</strong> requires authentication to connect.
+            The MCP server <strong>{serverName}</strong> requires authentication
+            to connect.
             {authUrl && (
               <span className="block mt-2 text-sm">
                 You will be redirected to <strong>{authUrl}</strong> to sign in.
@@ -103,7 +107,7 @@ export function AuthDialog({
             )}
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4 py-4">
           {error && (
             <Alert variant="destructive">
@@ -111,7 +115,7 @@ export function AuthDialog({
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          
+
           <div className="bg-muted p-4 rounded-lg space-y-2">
             <h4 className="text-sm font-medium">What happens next?</h4>
             <ul className="text-sm text-muted-foreground space-y-1">

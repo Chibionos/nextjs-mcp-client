@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { Biryani } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 
-const biryani = Biryani({ 
+const biryani = Biryani({
   weight: ["200", "300", "400", "600", "700", "800", "900"],
   subsets: ["latin"],
   variable: "--font-biryani",
@@ -12,7 +12,8 @@ const biryani = Biryani({
 
 export const metadata: Metadata = {
   title: "MCP Client for Claude",
-  description: "Connect MCP servers and chat with Claude using tools and resources",
+  description:
+    "Connect MCP servers and chat with Claude using tools and resources",
 };
 
 export default function RootLayout({

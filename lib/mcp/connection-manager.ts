@@ -1,4 +1,4 @@
-import { EventEmitter } from 'events';
+import { EventEmitter } from "events";
 
 interface ConnectionHealth {
   serverName: string;
@@ -16,7 +16,7 @@ export class ConnectionManager extends EventEmitter {
   private healthCheckInterval?: NodeJS.Timeout;
   private reconnectQueue: Set<string> = new Set();
   private reconnectAttempts: Map<string, number> = new Map();
-  
+
   // Configuration
   private readonly maxFailures = 3;
   private readonly healthCheckIntervalMs = 60000; // 60 seconds
@@ -84,19 +84,21 @@ export class ConnectionManager extends EventEmitter {
     const attempts = this.reconnectAttempts.get(serverName) || 0;
     if (attempts >= this.maxReconnectAttempts) {
       console.error(`Max reconnect attempts reached for ${serverName}`);
-      this.emit('connection-failed', serverName);
+      this.emit("connection-failed", serverName);
       return;
     }
 
     this.reconnectQueue.add(serverName);
-    const delay = this.reconnectDelayMs * Math.pow(2, attempts); // Exponential backoff
+    const delay = this.reconnectDelayMs * 2 ** attempts; // Exponential backoff
 
-    console.log(`Scheduling reconnect for ${serverName} in ${delay}ms (attempt ${attempts + 1}/${this.maxReconnectAttempts})`);
+    console.log(
+      `Scheduling reconnect for ${serverName} in ${delay}ms (attempt ${attempts + 1}/${this.maxReconnectAttempts})`,
+    );
 
     setTimeout(() => {
       this.reconnectQueue.delete(serverName);
       this.reconnectAttempts.set(serverName, attempts + 1);
-      this.emit('reconnect-required', serverName);
+      this.emit("reconnect-required", serverName);
     }, delay);
   }
 
@@ -124,13 +126,15 @@ export class ConnectionManager extends EventEmitter {
 
       // Only warn about timeout, don't trigger reconnect unless there are actual failures
       if (timeSinceActivity > this.connectionTimeoutMs) {
-        console.info(`Connection idle for ${serverName} (${Math.round(timeSinceActivity / 1000)}s since last activity)`);
+        console.info(
+          `Connection idle for ${serverName} (${Math.round(timeSinceActivity / 1000)}s since last activity)`,
+        );
         // Don't record as failure - MCP servers can be idle
         // this.recordFailure(serverName, 'Connection timeout');
       }
 
       // Emit health status
-      this.emit('health-check', {
+      this.emit("health-check", {
         serverName,
         isHealthy: health.isHealthy,
         lastActivity: health.lastActivity,

@@ -1,12 +1,15 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useMCPStore } from '@/lib/stores/mcp-store';
-import { Shield, AlertTriangle, Check, X } from 'lucide-react';
+import { AlertTriangle, Check, Shield, X } from "lucide-react";
+import { useState } from "react";
+import { useMCPStore } from "@/lib/stores/mcp-store";
 
 export function PermissionDialog() {
-  const { pendingPermissions, grantPermissions, removePermissionRequest } = useMCPStore();
-  const [selectedPermissions, setSelectedPermissions] = useState<Record<string, string[]>>({});
+  const { pendingPermissions, grantPermissions, removePermissionRequest } =
+    useMCPStore();
+  const [selectedPermissions, setSelectedPermissions] = useState<
+    Record<string, string[]>
+  >({});
 
   if (pendingPermissions.length === 0) {
     return null;
@@ -15,9 +18,11 @@ export function PermissionDialog() {
   const currentRequest = pendingPermissions[0];
 
   const handleGrant = () => {
-    const selected = selectedPermissions[currentRequest.serverName] || currentRequest.permissions;
+    const selected =
+      selectedPermissions[currentRequest.serverName] ||
+      currentRequest.permissions;
     grantPermissions(currentRequest.serverName, selected);
-    setSelectedPermissions(prev => {
+    setSelectedPermissions((prev) => {
       const next = { ...prev };
       delete next[currentRequest.serverName];
       return next;
@@ -26,7 +31,7 @@ export function PermissionDialog() {
 
   const handleDeny = () => {
     removePermissionRequest(currentRequest.serverName);
-    setSelectedPermissions(prev => {
+    setSelectedPermissions((prev) => {
       const next = { ...prev };
       delete next[currentRequest.serverName];
       return next;
@@ -34,20 +39,23 @@ export function PermissionDialog() {
   };
 
   const togglePermission = (permission: string) => {
-    setSelectedPermissions(prev => {
-      const current = prev[currentRequest.serverName] || currentRequest.permissions;
+    setSelectedPermissions((prev) => {
+      const current =
+        prev[currentRequest.serverName] || currentRequest.permissions;
       const isSelected = current.includes(permission);
-      
+
       return {
         ...prev,
         [currentRequest.serverName]: isSelected
-          ? current.filter(p => p !== permission)
-          : [...current, permission]
+          ? current.filter((p) => p !== permission)
+          : [...current, permission],
       };
     });
   };
 
-  const currentSelected = selectedPermissions[currentRequest.serverName] || currentRequest.permissions;
+  const currentSelected =
+    selectedPermissions[currentRequest.serverName] ||
+    currentRequest.permissions;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -57,7 +65,9 @@ export function PermissionDialog() {
             <Shield className="w-8 h-8 text-blue-600 mr-3" />
             <div>
               <h2 className="text-xl font-semibold">Permission Request</h2>
-              <p className="text-sm text-gray-600">Server: {currentRequest.serverName}</p>
+              <p className="text-sm text-gray-600">
+                Server: {currentRequest.serverName}
+              </p>
             </div>
           </div>
 
@@ -65,13 +75,16 @@ export function PermissionDialog() {
             <div className="flex items-start">
               <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 mr-2 flex-shrink-0" />
               <div className="text-sm text-amber-800">
-                {currentRequest.reason || `The server "${currentRequest.serverName}" is requesting the following permissions to continue.`}
+                {currentRequest.reason ||
+                  `The server "${currentRequest.serverName}" is requesting the following permissions to continue.`}
               </div>
             </div>
           </div>
 
           <div className="space-y-2 mb-6">
-            <p className="text-sm font-medium text-gray-700 mb-2">Requested Permissions:</p>
+            <p className="text-sm font-medium text-gray-700 mb-2">
+              Requested Permissions:
+            </p>
             {currentRequest.permissions.map((permission) => (
               <label
                 key={permission}
