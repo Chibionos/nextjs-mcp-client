@@ -3,7 +3,6 @@
 import {
   AlertCircle,
   Check,
-  ChevronRight,
   ExternalLink,
   Globe,
   Key,
@@ -18,10 +17,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Dialog,
@@ -33,7 +28,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMCPStore } from "@/lib/stores/mcp-store";
 import { type MCPServerConfig, ServerStatus } from "@/lib/types/mcp";
 

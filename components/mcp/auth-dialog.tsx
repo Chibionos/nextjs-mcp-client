@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { OAuthService } from "@/lib/services/oauth-service";
 import type { MCPServerConfig } from "@/lib/types/mcp";
+import { getOAuthCallbackUrl } from "@/lib/utils/app-url";
 
 interface AuthDialogProps {
   isOpen: boolean;
@@ -64,7 +65,7 @@ export function AuthDialog({
         tokenEndpoint: serverConfig.oauth.tokenEndpoint,
         clientId: serverConfig.oauth.clientId,
         clientSecret: serverConfig.oauth.clientSecret,
-        redirectUri: `${window.location.origin}/oauth/callback`,
+        redirectUri: getOAuthCallbackUrl(),
         scope: serverConfig.oauth.scope || "read write",
         usePKCE: serverConfig.oauth.usePKCE !== false,
         grantType: serverConfig.oauth.grantType || "authorization_code",

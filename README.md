@@ -217,9 +217,11 @@ Edit `components/remote-mcp-library-simple.tsx` and add your server to the `REMO
 ## Troubleshooting
 
 ### OAuth Authentication Issues
+- **"One or more redirect URIs are not allowed"**: Set the `NEXT_PUBLIC_APP_URL` environment variable to your deployed URL
 - **"Failed to complete OAuth flow"**: The server may require pre-registered OAuth clients
-- **Popup blocked**: Ensure popups are allowed for localhost:3000
+- **Popup blocked**: Ensure popups are allowed for your domain
 - **Token expired**: Tokens are automatically refreshed, but you can manually reconnect if needed
+- **Wrong redirect URL**: Make sure `NEXT_PUBLIC_APP_URL` matches your actual deployment URL (no trailing slash)
 
 ### Server Connection Issues
 - **Local servers**: Ensure the MCP server package is installed (`npm install -g @modelcontextprotocol/server-name`)
@@ -252,7 +254,10 @@ This application is optimized for deployment on [Railway](https://railway.app):
    ```
    ANTHROPIC_API_KEY=your-anthropic-api-key
    OPENAI_API_KEY=your-openai-api-key (optional)
+   NEXT_PUBLIC_APP_URL=https://your-app-name.railway.app
    ```
+
+   **Important**: Set `NEXT_PUBLIC_APP_URL` to your Railway app's URL (without trailing slash) for OAuth to work correctly.
 
 4. **Deploy**:
    - Railway will automatically build and deploy your app
@@ -261,7 +266,8 @@ This application is optimized for deployment on [Railway](https://railway.app):
 
 5. **Custom Domain** (optional):
    - Add a custom domain in Railway's settings
-   - Update OAuth callback URLs to match your domain
+   - Update `NEXT_PUBLIC_APP_URL` to match your custom domain
+   - OAuth callbacks will automatically use the correct URL
 
 ### Configuration Files
 

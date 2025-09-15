@@ -8,6 +8,7 @@ import {
   ServerStatus,
 } from "@/lib/types/mcp";
 import { AuthStatus, type OAuthConfig } from "@/lib/types/oauth";
+import { getOAuthCallbackUrl } from "@/lib/utils/app-url";
 
 export interface ConnectionOptions {
   onStatusChange?: (status: ServerStatus) => void;
@@ -183,7 +184,7 @@ export class MCPClientManagerWithOAuth {
       tokenEndpoint: oauthConfig.tokenEndpoint,
       clientId: oauthConfig.clientId,
       clientSecret: oauthConfig.clientSecret,
-      redirectUri: `${window.location.origin}/oauth/callback`,
+      redirectUri: getOAuthCallbackUrl(),
       scope: oauthConfig.scope || "read write",
       usePKCE: oauthConfig.usePKCE !== false,
       grantType: oauthConfig.grantType || "authorization_code",
@@ -227,7 +228,7 @@ export class MCPClientManagerWithOAuth {
         tokenEndpoint: config.oauth.tokenEndpoint,
         clientId: config.oauth.clientId,
         clientSecret: config.oauth.clientSecret,
-        redirectUri: `${window.location.origin}/oauth/callback`,
+        redirectUri: getOAuthCallbackUrl(),
         scope: config.oauth.scope || "",
         usePKCE: config.oauth.usePKCE !== false,
         grantType: config.oauth.grantType || "authorization_code",
