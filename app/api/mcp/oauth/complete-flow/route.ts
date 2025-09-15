@@ -160,15 +160,79 @@ export async function POST(request: NextRequest) {
         console.log('[OAuth] CodeVerifier length:', codeVerifier?.length);
         console.log('[OAuth] Using serverUrl:', originalServerUrl || serverUrl);
 
-        // Use the original serverUrl from session
-        const tokens = await exchangeAuthorization(originalServerUrl || serverUrl, {
-          metadata,
-          clientInformation: clientInfo,
-          authorizationCode: code,
-          codeVerifier: codeVerifier || undefined,
-          redirectUri,
-        });
+        // Check if the code looks like it's already an access token (MCP servers sometimes return the token directly)
+        const codeParts = code.split(':');
+        const looksLikeToken = codeParts.length >= 3 && codeParts.every((part: string) => part.length > 0);
 
+        console.log('[OAuth] Code parts:', codeParts.length, 'Looks like token:', looksLikeToken);
+        console.log('[OAuth] Code preview:', code.substring(0, 50));
+
+        let tokens: any = null;
+
+        if (looksLikeToken) {
+          // Some MCP servers return the access token directly as the code
+          console.log('[OAuth] Code appears to be access token format, using directly...');
+          tokens = {
+            access_token: code,
+            token_type: 'bearer',
+            expires_in: 3600, // Assume 1 hour default
+          };
+        } else {
+          // Try manual token exchange first to debug
+          console.log('[OAuth] Attempting manual token exchange...');
+
+          try {
+            const tokenEndpoint = metadata.token_endpoint;
+            console.log('[OAuth] Token endpoint:', tokenEndpoint);
+
+            const tokenParams = new URLSearchParams({
+              grant_type: 'authorization_code',
+              code: code,
+              redirect_uri: redirectUri,
+              client_id: clientInfo.client_id,
+              ...(codeVerifier && { code_verifier: codeVerifier }),
+            });
+
+            console.log('[OAuth] Token request params (first 100 chars):', tokenParams.toString().substring(0, 100));
+
+            const tokenResponse = await fetch(tokenEndpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                // Don't include Authorization header since we're using none auth method
+              },
+              body: tokenParams,
+            });
+
+            console.log('[OAuth] Manual token exchange response status:', tokenResponse.status);
+            const tokenData = await tokenResponse.json();
+            console.log('[OAuth] Manual token exchange response:', tokenData);
+
+            if (tokenResponse.ok && tokenData.access_token) {
+              tokens = tokenData;
+              console.log('[OAuth] Manual token exchange successful!');
+            } else {
+              console.log('[OAuth] Manual token exchange failed, falling back to SDK...');
+            }
+          } catch (manualError) {
+            console.error('[OAuth] Manual token exchange error:', manualError);
+            console.log('[OAuth] Falling back to SDK exchange...');
+          }
+
+          // Fallback to SDK if manual exchange failed
+          if (!tokens) {
+            console.log('[OAuth] Using SDK exchangeAuthorization...');
+            tokens = await exchangeAuthorization(originalServerUrl || serverUrl, {
+              metadata,
+              clientInformation: clientInfo,
+              authorizationCode: code,
+              codeVerifier: codeVerifier || undefined,
+              redirectUri,
+            });
+          }
+        }
+
+        console.log('[OAuth] Raw token exchange response:', tokens);
         console.log('[OAuth] Token exchange response:', {
           hasAccessToken: !!tokens.access_token,
           accessTokenLength: tokens.access_token?.length,
@@ -178,7 +242,11 @@ export async function POST(request: NextRequest) {
 
         if (!tokens.access_token) {
           console.error('[OAuth] No access token in exchange response!');
+          console.error('[OAuth] Full response keys:', Object.keys(tokens));
           console.error('[OAuth] Full response:', tokens);
+        } else {
+          console.log('[OAuth] Access token starts with:', tokens.access_token.substring(0, 50));
+          console.log('[OAuth] Access token ends with:', tokens.access_token.substring(-20));
         }
 
         return NextResponse.json({

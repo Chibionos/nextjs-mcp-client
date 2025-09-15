@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
-import { EnhancedSSETransport } from '@/lib/mcp/sse-transport-enhanced';
+import { ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import { getGlobalClientManager } from '@/lib/mcp/global-client-manager';
 import { ServerStatus } from '@/lib/types/mcp';
 
@@ -40,11 +40,13 @@ export async function POST(request: NextRequest) {
     // Create URL object
     const serverUrl = new URL(url);
     
-    // Create enhanced SSE transport
-    const enhancedTransport = new EnhancedSSETransport(serverUrl, headers);
-    
-    // Connect and get the underlying SSE transport
-    const sseTransport = await enhancedTransport.connect();
+    // Try direct SSE transport first for debugging
+    console.log('[MCP] Creating direct SSEClientTransport...');
+    const sseTransport = new SSEClientTransport(serverUrl, {
+      requestInit: {
+        headers: headers
+      }
+    });
     
     // Create MCP client
     const client = new Client(
@@ -59,38 +61,29 @@ export async function POST(request: NextRequest) {
 
     // Connect the client to the transport
     await client.connect(sseTransport);
-    
-    // Initialize the connection
-    const serverInfo = await client.getServerInformation();
-    console.log(`[MCP] Successfully connected to ${name}:`, serverInfo);
 
-    // List available tools
-    const tools = await client.listTools();
-    console.log(`[MCP] ${name} tools (${tools.tools?.length || 0}):`, tools.tools?.map(t => t.name));
-    
-    // Add to client manager
-    clientManager.addClient(name, client);
-    clientManager.updateServerStatus(name, ServerStatus.CONNECTED);
-    
-    // Store enhanced transport for reconnection handling
-    enhancedTransport.on('reconnecting', ({ attempt, delay }) => {
-      console.log(`[MCP] ${name}: Reconnecting (attempt ${attempt}, delay ${delay}ms)`);
-      clientManager.updateServerStatus(name, ServerStatus.CONNECTING);
-    });
-    
-    enhancedTransport.on('reconnected', () => {
-      console.log(`[MCP] ${name}: Reconnected successfully`);
-      clientManager.updateServerStatus(name, ServerStatus.CONNECTED);
-    });
-    
-    enhancedTransport.on('error', (error) => {
-      console.error(`[MCP] ${name}: Connection error:`, error);
-      clientManager.updateServerStatus(name, ServerStatus.ERROR);
-    });
-    
-    enhancedTransport.on('timeout', () => {
-      console.warn(`[MCP] ${name}: Connection timeout`);
-      clientManager.updateServerStatus(name, ServerStatus.ERROR);
+    // Initialize the connection - try to list tools to verify connection
+    let tools: any = null;
+    try {
+      tools = await client.request({ method: 'tools/list', params: {} }, ListToolsResultSchema);
+      console.log(`[MCP] Successfully connected to ${name}, tools:`, tools?.tools?.length || 0);
+    } catch (error) {
+      console.warn(`[MCP] Could not list tools for ${name}, but connection may still work:`, error);
+    }
+
+    // For now, just store the client in the manager manually
+    // TODO: Update the client manager to properly handle remote SSE clients
+    clientManager['clients'].set(name, client);
+    clientManager['updateServerState'](name, {
+      name,
+      config: {
+        command: url, // Store URL in command for now
+        headers: authToken ? { Authorization: `Bearer ***` } : undefined,
+      } as any,
+      status: ServerStatus.CONNECTED,
+      capabilities: {
+        tools: tools?.tools || [],
+      },
     });
 
     return NextResponse.json({

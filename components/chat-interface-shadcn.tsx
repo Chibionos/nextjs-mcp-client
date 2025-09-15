@@ -212,21 +212,31 @@ export function ChatInterfaceShadcn() {
                       </div>
                       
                       {message.toolCalls && message.toolCalls.length > 0 && (
-                        <div className="mt-2 space-y-2">
-                          <div className="text-xs text-muted-foreground font-medium">Tool Calls:</div>
-                          <div className="space-y-1">
-                            {message.toolCalls.map((call: any) => (
-                              <div key={call.id} className="bg-muted/50 rounded p-2 text-xs">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <Wrench className="h-3 w-3" />
-                                  <span className="font-mono font-medium">{call.name}</span>
+                        <div className="mt-3 space-y-2">
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Wrench className="h-3 w-3" />
+                            <span className="font-medium">Used {message.toolCalls.length} tool{message.toolCalls.length > 1 ? 's' : ''}</span>
+                          </div>
+                          <div className="border-l-2 border-muted ml-1.5 pl-3 space-y-2">
+                            {message.toolCalls.map((call: any, index: number) => (
+                              <div key={call.id || index} className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <div className="h-2 w-2 rounded-full bg-primary/50" />
+                                  <span className="font-mono text-xs">{call.name}</span>
                                 </div>
                                 {call.arguments && (
-                                  <pre className="text-xs overflow-x-auto bg-background/50 rounded p-2 mt-1">
-                                    {typeof call.arguments === 'string' 
-                                      ? call.arguments 
-                                      : JSON.stringify(call.arguments, null, 2)}
-                                  </pre>
+                                  <div className="ml-4 text-xs text-muted-foreground">
+                                    {typeof call.arguments === 'object' ? (
+                                      Object.entries(call.arguments).map(([key, value]) => (
+                                        <div key={key} className="flex gap-2">
+                                          <span className="font-medium">{key}:</span>
+                                          <span className="truncate">{String(value)}</span>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <span>{String(call.arguments)}</span>
+                                    )}
+                                  </div>
                                 )}
                               </div>
                             ))}

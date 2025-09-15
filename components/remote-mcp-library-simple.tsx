@@ -190,6 +190,11 @@ export function RemoteMCPLibrarySimple() {
   };
 
   const connectDirectly = async (server: RemoteMCPServer, token: string) => {
+    console.log('[connectDirectly] Called with server:', server.name);
+    console.log('[connectDirectly] Token received:', token);
+    console.log('[connectDirectly] Token length:', token?.length);
+    console.log('[connectDirectly] Token first 50 chars:', token?.substring(0, 50));
+
     setIsConnecting(true);
 
     try {
@@ -208,15 +213,20 @@ export function RemoteMCPLibrarySimple() {
         status: ServerStatus.DISCONNECTED,
       });
 
+      // Log what we're about to send
+      const requestPayload = {
+        name: server.name,
+        url: server.url,
+        authToken: token || undefined,
+      };
+      console.log('[connectDirectly] Sending to /api/mcp/connect-sse:', requestPayload);
+      console.log('[connectDirectly] authToken in payload:', requestPayload.authToken);
+
       // Connect to server using our SSE endpoint
       const response = await fetch('/api/mcp/connect-sse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: server.name,
-          url: server.url,
-          authToken: token || undefined,
-        }),
+        body: JSON.stringify(requestPayload),
       });
 
       if (!response.ok) {
@@ -397,9 +407,11 @@ export function RemoteMCPLibrarySimple() {
 
               const tokenData = await exchangeResponse.json();
               console.log('[OAuth] Token exchange response from server:', tokenData);
+              console.log('[OAuth] Full response keys:', Object.keys(tokenData));
               console.log('[OAuth] Access token present:', !!tokenData.accessToken);
               console.log('[OAuth] Access token length:', tokenData.accessToken?.length);
-              console.log('[OAuth] Access token preview:', tokenData.accessToken?.substring(0, 30));
+              console.log('[OAuth] Access token full value:', tokenData.accessToken);
+              console.log('[OAuth] Authorization code we sent:', event.data.code);
 
               if (!tokenData.accessToken) {
                 console.error('[OAuth] ERROR: No access token in response:', tokenData);
@@ -407,9 +419,14 @@ export function RemoteMCPLibrarySimple() {
                 throw new Error('No access token received from server');
               }
 
+              // Double check we're not accidentally using the code
+              const tokenToUse = tokenData.accessToken;
+              console.log('[OAuth] About to connect with token:', tokenToUse);
+              console.log('[OAuth] Token starts with:', tokenToUse.substring(0, 50));
+              console.log('[OAuth] Token is same as code?', tokenToUse === event.data.code);
+
               // Connect with the token
-              console.log('[OAuth] Connecting to server with access token:', tokenData.accessToken.substring(0, 30) + '...');
-              await connectDirectly(server, tokenData.accessToken);
+              await connectDirectly(server, tokenToUse);
               toast.success('OAuth authentication successful!');
             } catch (error) {
               console.error('[OAuth] Token exchange failed:', error);
