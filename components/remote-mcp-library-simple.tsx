@@ -359,33 +359,33 @@ const remoteMCPServers: RemoteMCPServer[] = [
     maintainer: "Zine",
   },
 
-  // OAuth2.1 Servers (requires pre-registration)
+  // OAuth2.1 Servers (with dynamic registration)
   {
     name: "Atlassian",
     category: "Software Development",
     url: "https://mcp.atlassian.com/v1/sse",
-    authentication: "OAuth2.1 🔐",
+    authentication: "OAuth2.1",
     maintainer: "Atlassian",
   },
   {
     name: "Box",
     category: "Document Management",
     url: "https://mcp.box.com",
-    authentication: "OAuth2.1 🔐",
+    authentication: "OAuth2.1",
     maintainer: "Box",
   },
   {
     name: "GitHub",
     category: "Software Development",
     url: "https://api.githubcopilot.com/mcp",
-    authentication: "OAuth2.1 🔐",
+    authentication: "OAuth2.1",
     maintainer: "GitHub",
   },
   {
     name: "Plaid",
     category: "Payments",
     url: "https://api.dashboard.plaid.com/mcp/sse",
-    authentication: "OAuth2.1 🔐",
+    authentication: "OAuth2.1",
     maintainer: "Plaid",
   },
 
@@ -770,7 +770,7 @@ export function RemoteMCPLibrarySimple() {
         throw new Error(error.error || "Failed to discover OAuth metadata");
       }
 
-      const { metadata, scope, supportsRegistration } =
+      const { metadata, scope, supportsRegistration, authServerUrl } =
         await discoverResponse.json();
 
       if (!supportsRegistration && server.authentication !== "OAuth2.1 🔐") {
@@ -787,7 +787,7 @@ export function RemoteMCPLibrarySimple() {
           serverUrl: server.url,
           serverName: server.name,
           step: "register",
-          data: { metadata, scope },
+          data: { metadata, scope, authServerUrl },
         }),
       });
 
@@ -806,7 +806,7 @@ export function RemoteMCPLibrarySimple() {
           serverUrl: server.url,
           serverName: server.name,
           step: "authorize",
-          data: { metadata, clientInfo, scope, redirectUri },
+          data: { metadata, clientInfo, scope, redirectUri, authServerUrl },
         }),
       });
 
