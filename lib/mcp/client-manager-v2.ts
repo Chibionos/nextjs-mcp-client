@@ -1,13 +1,14 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
-import { 
-  MCPServerConfig, 
-  ServerState, 
-  ServerStatus, 
-  ServerCapabilities,
-  TransportType
-} from '@/lib/types/mcp';
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+import {
+  type MCPServerConfig,
+  type ServerCapabilities,
+  type ServerState,
+  ServerStatus,
+  TransportType,
+} from "@/lib/types/mcp";
+import { ConnectionManager } from "./connection-manager";
+import { ErrorHandler } from "./error-handler";
 
 export interface ConnectionOptions {
   onStatusChange?: (status: ServerStatus) => void;
@@ -16,17 +17,48 @@ export interface ConnectionOptions {
 
 export class MCPClientManagerV2 {
   private clients: Map<string, Client> = new Map();
-  private transports: Map<string, StdioClientTransport | SSEClientTransport> = new Map();
+  private transports: Map<string, any> = new Map();
   private serverStates: Map<string, ServerState> = new Map();
   private connectionOptions: Map<string, ConnectionOptions> = new Map();
+  private connectionManager: ConnectionManager;
+
+  constructor() {
+    this.connectionManager = new ConnectionManager();
+    this.setupConnectionManagerListeners();
+  }
+
+  /**
+   * Setup connection manager event listeners
+   */
+  private setupConnectionManagerListeners(): void {
+    // Disable automatic reconnection - only reconnect on actual tool call failures
+    this.connectionManager.on(
+      "reconnect-required",
+      async (serverName: string) => {
+        console.log(
+          `Server ${serverName} marked for reconnection (will reconnect on next use)`,
+        );
+        // Don't automatically reconnect - wait for actual usage
+      },
+    );
+
+    this.connectionManager.on("connection-failed", (serverName: string) => {
+      console.error(`Connection permanently failed for ${serverName}`);
+      this.updateServerState(serverName, {
+        ...this.serverStates.get(serverName)!,
+        status: ServerStatus.ERROR,
+        error: "Maximum reconnection attempts exceeded",
+      });
+    });
+  }
 
   /**
    * Connect to an MCP server with proper transport handling
    */
   async connectServer(
-    name: string, 
+    name: string,
     config: MCPServerConfig,
-    options?: ConnectionOptions
+    options?: ConnectionOptions,
   ): Promise<ServerState> {
     try {
       // Store connection options
@@ -35,10 +67,10 @@ export class MCPClientManagerV2 {
       }
 
       // Update status to connecting
-      this.updateServerState(name, { 
+      this.updateServerState(name, {
         name,
         config,
-        status: ServerStatus.CONNECTING 
+        status: ServerStatus.CONNECTING,
       });
 
       // Create transport based on config
@@ -49,7 +81,7 @@ export class MCPClientManagerV2 {
       const client = new Client(
         {
           name: `nextjs-mcp-client-${name}`,
-          version: '1.0.0',
+          version: "1.0.0",
         },
         {
           capabilities: {
@@ -58,12 +90,15 @@ export class MCPClientManagerV2 {
             },
             sampling: {},
           },
-        }
+        },
       );
 
       // Connect the client
       await client.connect(transport);
       this.clients.set(name, client);
+
+      // Don't register for health monitoring - it's too aggressive
+      // this.connectionManager.registerConnection(name);
 
       // Get server capabilities
       const capabilities = await this.discoverCapabilities(client);
@@ -78,26 +113,33 @@ export class MCPClientManagerV2 {
 
       this.updateServerState(name, serverState);
       return serverState;
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`Failed to connect to server ${name}:`, error);
-      
+      // Classify the error
+      const mcpError = ErrorHandler.classifyError(error, name);
+      ErrorHandler.logError(mcpError);
+
       const errorState: ServerState = {
         name,
         config,
         status: ServerStatus.ERROR,
-        error: errorMessage,
+        error: ErrorHandler.formatForUser(mcpError),
       };
-      
+
       this.updateServerState(name, errorState);
-      
+
+      // Check if we should attempt reconnection
+      if (ErrorHandler.shouldReconnect(mcpError)) {
+        this.connectionManager.recordFailure(name, mcpError.message);
+      }
+
       // Call error handler if provided
       const options = this.connectionOptions.get(name);
       if (options?.onError) {
-        options.onError(error instanceof Error ? error : new Error(errorMessage));
+        options.onError(
+          error instanceof Error ? error : new Error(mcpError.message),
+        );
       }
-      
+
       throw error;
     }
   }
@@ -105,68 +147,139 @@ export class MCPClientManagerV2 {
   /**
    * Create appropriate transport based on configuration
    */
-  private async createTransport(config: MCPServerConfig): Promise<StdioClientTransport | SSEClientTransport> {
-    // Check if this is an SSE endpoint
-    if (config.command.startsWith('http://') || config.command.startsWith('https://')) {
-      // SSE transport for HTTP endpoints
-      return new SSEClientTransport(new URL(config.command));
+  private async createTransport(config: MCPServerConfig): Promise<any> {
+    // Check if this is a remote SSE server (has url instead of command)
+    if (config.type === "remote-sse" && config.url) {
+      console.log(
+        "[MCPClientManagerV2] Creating transport for remote SSE server:",
+        config.url,
+      );
+
+      // For remote SSE servers, we should not use this manager
+      // They should use the connect-sse endpoint directly
+      throw new Error(
+        "Remote SSE servers should use /api/mcp/connect-sse endpoint",
+      );
     }
 
-    // Default to stdio transport for local processes
-    return new StdioClientTransport({
-      command: config.command,
-      args: config.args,
-      env: config.env,
-    });
+    // Check if this is an SSE endpoint
+    if (
+      config.command &&
+      (config.command.startsWith("http://") ||
+        config.command.startsWith("https://"))
+    ) {
+      // SSE transport for HTTP endpoints
+      const url = new URL(config.command);
+
+      // If we have headers (like auth), we need to use the proxy
+      if (config.headers && Object.keys(config.headers).length > 0) {
+        // Use proxy endpoint to add headers
+        const proxyUrl = new URL("/api/mcp/sse-proxy", window.location.origin);
+        proxyUrl.searchParams.set("url", config.command);
+
+        // Add auth header if present
+        if (config.headers["Authorization"]) {
+          proxyUrl.searchParams.set("auth", config.headers["Authorization"]);
+        }
+
+        return new SSEClientTransport(proxyUrl);
+      }
+
+      return new SSEClientTransport(url);
+    }
+
+    // For stdio transport, dynamically import it only on server side
+    if (config.command && typeof window === "undefined") {
+      const { StdioClientTransport } = await import(
+        "@modelcontextprotocol/sdk/client/stdio.js"
+      );
+      return new StdioClientTransport({
+        command: config.command,
+        args: config.args,
+        env: config.env,
+      });
+    } else if (config.command) {
+      throw new Error(
+        "Stdio transport is not supported in the browser. Please use a server-side API route.",
+      );
+    } else {
+      throw new Error("No command or URL specified for server configuration");
+    }
   }
 
   /**
    * Discover server capabilities
    */
-  private async discoverCapabilities(client: Client): Promise<ServerCapabilities> {
+  private async discoverCapabilities(
+    client: Client,
+  ): Promise<ServerCapabilities> {
     const capabilities: ServerCapabilities = {};
 
     try {
       // List available tools
       const { tools } = await client.listTools();
+      console.log(`Listed ${tools?.length || 0} tools from server`);
+
       if (tools && tools.length > 0) {
-        capabilities.tools = tools.map(tool => ({
+        capabilities.tools = tools.map((tool) => ({
           name: tool.name,
           description: tool.description,
           inputSchema: tool.inputSchema,
         }));
+        console.log(
+          "Tools discovered:",
+          tools.map((t) => t.name),
+        );
       }
-    } catch (error) {
-      console.warn('Failed to list tools:', error);
+    } catch (error: any) {
+      // This should not fail for MCP servers that support tools
+      console.error("Failed to list tools:", error);
+
+      // If it's not a "method not found" error, this is a real problem
+      if (error?.code !== -32601) {
+        throw error; // Re-throw to prevent connection from succeeding
+      }
     }
 
     try {
       // List available resources
       const { resources } = await client.listResources();
       if (resources && resources.length > 0) {
-        capabilities.resources = resources.map(resource => ({
+        capabilities.resources = resources.map((resource) => ({
           uri: resource.uri,
           name: resource.name,
           description: resource.description,
           mimeType: resource.mimeType,
         }));
       }
-    } catch (error) {
-      console.warn('Failed to list resources:', error);
+    } catch (error: any) {
+      // Check if it's just method not supported (expected)
+      if (error?.code === -32601) {
+        // This is fine, server doesn't support resources
+        console.debug("Server does not support resources");
+      } else {
+        console.warn("Failed to list resources:", error);
+      }
     }
 
     try {
       // List available prompts
       const { prompts } = await client.listPrompts();
       if (prompts && prompts.length > 0) {
-        capabilities.prompts = prompts.map(prompt => ({
+        capabilities.prompts = prompts.map((prompt) => ({
           name: prompt.name,
           description: prompt.description,
           arguments: prompt.arguments,
         }));
       }
-    } catch (error) {
-      console.warn('Failed to list prompts:', error);
+    } catch (error: any) {
+      // Check if it's just method not supported (expected)
+      if (error?.code === -32601) {
+        // This is fine, server doesn't support prompts
+        console.debug("Server does not support prompts");
+      } else {
+        console.warn("Failed to list prompts:", error);
+      }
     }
 
     return capabilities;
@@ -194,14 +307,16 @@ export class MCPClientManagerV2 {
       // Update status
       this.updateServerState(name, {
         name,
-        config: this.serverStates.get(name)?.config || { command: '', args: [] },
+        config: this.serverStates.get(name)?.config || {
+          command: "",
+          args: [],
+        },
         status: ServerStatus.DISCONNECTED,
       });
-      
+
       // Clean up
       this.serverStates.delete(name);
       this.connectionOptions.delete(name);
-
     } catch (error) {
       console.error(`Failed to disconnect server ${name}:`, error);
       throw error;
@@ -211,17 +326,27 @@ export class MCPClientManagerV2 {
   /**
    * Call a tool on a server
    */
-  async callTool(serverName: string, toolName: string, args: any = {}): Promise<any> {
+  async callTool(
+    serverName: string,
+    toolName: string,
+    args: any = {},
+  ): Promise<any> {
     const client = this.clients.get(serverName);
     if (!client) {
       throw new Error(`Server ${serverName} is not connected`);
     }
 
     try {
+      // Don't update activity - health monitoring is disabled
+      // this.connectionManager.updateActivity(serverName);
+
       const result = await client.callTool({
         name: toolName,
         arguments: args,
       });
+
+      // Don't update activity - health monitoring is disabled
+      // this.connectionManager.updateActivity(serverName);
 
       // Handle different content types
       const contentArray = result.content as any[];
@@ -230,17 +355,31 @@ export class MCPClientManagerV2 {
         if (contentArray.length === 1) {
           // If single content item, return just the content
           const content = contentArray[0];
-          if (content.type === 'text') {
+          if (content.type === "text") {
             return content.text;
           }
           return content;
         }
         return contentArray;
       }
-      
+
       return result.content;
     } catch (error) {
-      console.error(`Failed to call tool ${toolName} on server ${serverName}:`, error);
+      // Classify the error
+      const mcpError = ErrorHandler.classifyError(error, serverName);
+      ErrorHandler.logError(mcpError);
+
+      // Record failure for connection health tracking if recoverable
+      if (ErrorHandler.shouldReconnect(mcpError)) {
+        this.connectionManager.recordFailure(serverName, mcpError.message);
+      }
+
+      // Don't throw for expected errors (like method not found)
+      if (ErrorHandler.isExpectedError(mcpError)) {
+        console.log(`Skipping unsupported method: ${toolName}`);
+        return null;
+      }
+
       throw error;
     }
   }
@@ -258,7 +397,10 @@ export class MCPClientManagerV2 {
       const result = await client.readResource({ uri });
       return result.contents;
     } catch (error) {
-      console.error(`Failed to read resource ${uri} from server ${serverName}:`, error);
+      console.error(
+        `Failed to read resource ${uri} from server ${serverName}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -266,7 +408,11 @@ export class MCPClientManagerV2 {
   /**
    * Get a prompt from a server
    */
-  async getPrompt(serverName: string, promptName: string, args: Record<string, string> = {}): Promise<any> {
+  async getPrompt(
+    serverName: string,
+    promptName: string,
+    args: Record<string, string> = {},
+  ): Promise<any> {
     const client = this.clients.get(serverName);
     if (!client) {
       throw new Error(`Server ${serverName} is not connected`);
@@ -279,7 +425,10 @@ export class MCPClientManagerV2 {
       });
       return result.messages;
     } catch (error) {
-      console.error(`Failed to get prompt ${promptName} from server ${serverName}:`, error);
+      console.error(
+        `Failed to get prompt ${promptName} from server ${serverName}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -289,7 +438,7 @@ export class MCPClientManagerV2 {
    */
   private updateServerState(name: string, state: ServerState): void {
     this.serverStates.set(name, state);
-    
+
     // Notify status change listener
     const options = this.connectionOptions.get(name);
     if (options?.onStatusChange) {
@@ -328,8 +477,22 @@ export class MCPClientManagerV2 {
       throw new Error(`Server ${name} not found`);
     }
 
-    // Disconnect first if connected
+    // If already connected, just return current state
     if (this.isServerConnected(name)) {
+      console.log(`Server ${name} is already connected, skipping reconnection`);
+      return currentState;
+    }
+
+    // Only reconnect if actually disconnected or in error state
+    console.log(
+      `Reconnecting server ${name} (current status: ${currentState.status})`,
+    );
+
+    // Disconnect first if in error state or connected (shouldn't happen)
+    if (
+      currentState.status === ServerStatus.ERROR ||
+      this.isServerConnected(name)
+    ) {
       await this.disconnectServer(name);
     }
 
@@ -343,15 +506,18 @@ export class MCPClientManagerV2 {
    */
   getAllTools(): Array<{ serverName: string; tool: any }> {
     const allTools: Array<{ serverName: string; tool: any }> = [];
-    
+
     for (const state of this.serverStates.values()) {
-      if (state.status === ServerStatus.CONNECTED && state.capabilities?.tools) {
+      if (
+        state.status === ServerStatus.CONNECTED &&
+        state.capabilities?.tools
+      ) {
         for (const tool of state.capabilities.tools) {
           allTools.push({ serverName: state.name, tool });
         }
       }
     }
-    
+
     return allTools;
   }
 
@@ -359,10 +525,10 @@ export class MCPClientManagerV2 {
    * Cleanup all connections
    */
   async cleanup(): Promise<void> {
-    const disconnectPromises = Array.from(this.clients.keys()).map(name => 
-      this.disconnectServer(name).catch(err => 
-        console.error(`Failed to disconnect ${name} during cleanup:`, err)
-      )
+    const disconnectPromises = Array.from(this.clients.keys()).map((name) =>
+      this.disconnectServer(name).catch((err) =>
+        console.error(`Failed to disconnect ${name} during cleanup:`, err),
+      ),
     );
     await Promise.all(disconnectPromises);
   }

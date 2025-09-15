@@ -1,53 +1,60 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import React from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  Brain, 
-  Server, 
-  Settings, 
+import {
+  Brain,
+  ChevronRight,
+  Code2,
+  Database,
+  ExternalLink,
+  Github,
+  Globe,
   MessageSquare,
   Plug,
-  Upload,
   RefreshCw,
-  ChevronRight,
+  Server,
+  Settings,
   Sparkles,
-  Code2,
-  Globe,
-  Database,
-  Github,
   Star,
-  ExternalLink
-} from 'lucide-react';
-import { ChatInterfaceShadcn } from '@/components/chat-interface-shadcn';
-import { ServerManagerShadcn } from '@/components/server-manager-shadcn';
-import { ConfigUploaderShadcn } from '@/components/config-uploader-shadcn';
-import { PermissionDialog } from '@/components/permission-dialog';
-import { ThemeToggle } from '@/components/theme-toggle';
-import { useMCPStore } from '@/lib/stores/mcp-store';
-import { cn } from '@/lib/utils';
+  Upload,
+} from "lucide-react";
+import React, { useState } from "react";
+import { ChatInterfaceShadcn } from "@/components/chat-interface-shadcn";
+import { ConfigUploaderShadcn } from "@/components/config-uploader-shadcn";
+import { PermissionDialog } from "@/components/permission-dialog";
+import { RemoteMCPLibrarySimple } from "@/components/remote-mcp-library-simple";
+import { ServerManagerShadcn } from "@/components/server-manager-shadcn";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useMCPStore } from "@/lib/stores/mcp-store";
+import { cn } from "@/lib/utils";
 
 export default function Home() {
   const { servers } = useMCPStore();
   const [activeTab, setActiveTab] = useState("chat");
   const [githubStars, setGithubStars] = useState(1);
-  
-  const connectedServers = servers.filter(s => s.status === 'connected');
-  const totalTools = connectedServers.reduce((acc, server) => 
-    acc + (server.capabilities?.tools?.length || 0), 0
+
+  const connectedServers = servers.filter((s) => s.status === "connected");
+  const totalTools = connectedServers.reduce(
+    (acc, server) => acc + (server.capabilities?.tools?.length || 0),
+    0,
   );
 
   // Fetch GitHub stars on component mount
   React.useEffect(() => {
-    fetch('https://api.github.com/repos/Chibionos/nextjs-mcp-client')
-      .then(res => res.json())
-      .then(data => setGithubStars(data.stargazers_count || 1))
+    fetch("https://api.github.com/repos/Chibionos/nextjs-mcp-client")
+      .then((res) => res.json())
+      .then((data) => setGithubStars(data.stargazers_count || 1))
       .catch(() => setGithubStars(1));
   }, []);
 
@@ -64,24 +71,26 @@ export default function Home() {
               </div>
               <div className="flex flex-col">
                 <h1 className="text-base font-semibold">Simple MCP Client</h1>
-                <p className="text-xs text-muted-foreground">One message, one tool call, MCP execution</p>
+                <p className="text-xs text-muted-foreground">
+                  One message, one tool call, MCP execution
+                </p>
               </div>
             </div>
-            
+
             <Separator orientation="vertical" className="h-6" />
-            
+
             <div className="flex items-center gap-4 text-sm">
               <Badge variant="secondary" className="text-xs font-mono">
                 claude-sonnet-4
               </Badge>
-              
-              <Button 
-                variant="outline" 
-                size="sm" 
+
+              <Button
+                variant="outline"
+                size="sm"
                 className="gap-2 h-7"
                 onClick={() => {
                   // This will be handled by ChatInterfaceShadcn component
-                  const event = new CustomEvent('showToolsModal');
+                  const event = new CustomEvent("showToolsModal");
                   window.dispatchEvent(event);
                 }}
               >
@@ -90,20 +99,25 @@ export default function Home() {
               </Button>
             </div>
           </div>
-          
+
           <div className="ml-auto flex items-center gap-3">
             <Button
               variant="outline"
               size="sm"
               className="gap-2 h-7"
-              onClick={() => window.open('https://github.com/Chibionos/nextjs-mcp-client', '_blank')}
+              onClick={() =>
+                window.open(
+                  "https://github.com/Chibionos/nextjs-mcp-client",
+                  "_blank",
+                )
+              }
             >
               <Github className="h-3 w-3" />
               <Star className="h-3 w-3" />
               {githubStars}
               <ExternalLink className="h-2 w-2" />
             </Button>
-            
+
             <ThemeToggle />
           </div>
         </div>
@@ -127,7 +141,12 @@ export default function Home() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">Configuration</CardTitle>
                   <div className="flex gap-2">
-                    <Badge variant={connectedServers.length > 0 ? "default" : "outline"} className="text-xs">
+                    <Badge
+                      variant={
+                        connectedServers.length > 0 ? "default" : "outline"
+                      }
+                      className="text-xs"
+                    >
                       <Plug className="h-3 w-3 mr-1" />
                       {connectedServers.length}/{servers.length}
                     </Badge>
@@ -138,11 +157,17 @@ export default function Home() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
                 <ConfigUploaderShadcn />
+                <div className="flex items-center gap-2">
+                  <Separator className="flex-1" />
+                  <span className="text-xs text-muted-foreground">or</span>
+                  <Separator className="flex-1" />
+                </div>
+                <RemoteMCPLibrarySimple />
               </CardContent>
             </Card>
-            
+
             {/* MCP Servers - Takes remaining space */}
             <div className="flex-1 min-h-0 overflow-hidden">
               <ServerManagerShadcn />

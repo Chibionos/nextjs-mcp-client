@@ -1,53 +1,62 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useMCPStore } from '@/lib/stores/mcp-store';
-import { ServerStatus } from '@/lib/types/mcp';
-import { ReconnectAllButton } from './reconnect-all-button';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { 
-  Server, 
-  Plug, 
-  PlugZap, 
-  XCircle, 
+import {
   AlertCircle,
   ChevronDown,
   ChevronRight,
-  Wrench,
   FileText,
+  Loader2,
   MessageSquare,
-  RefreshCw,
-  Trash2,
   MoreVertical,
-  Loader2
-} from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuSeparator,
-  DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu';
+  Plug,
+  PlugZap,
+  RefreshCw,
+  Server,
+  Trash2,
+  Wrench,
+  XCircle,
+} from "lucide-react";
+import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useMCPStore } from "@/lib/stores/mcp-store";
+import { ServerStatus } from "@/lib/types/mcp";
+import { cn } from "@/lib/utils";
+import { ReconnectAllButton } from "./reconnect-all-button";
 
 export function ServerManagerShadcn() {
-  const { servers, addServer, removeServer, updateServerStatus } = useMCPStore();
-  const [expandedServers, setExpandedServers] = useState<Set<string>>(new Set());
+  const { servers, addServer, removeServer, updateServerStatus } =
+    useMCPStore();
+  const [expandedServers, setExpandedServers] = useState<Set<string>>(
+    new Set(),
+  );
   const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set());
   const [loadingServers, setLoadingServers] = useState<Set<string>>(new Set());
 
   const toggleExpanded = (name: string) => {
-    setExpandedServers(prev => {
+    setExpandedServers((prev) => {
       const next = new Set(prev);
       if (next.has(name)) {
         next.delete(name);
@@ -59,7 +68,7 @@ export function ServerManagerShadcn() {
   };
 
   const toggleToolsExpanded = (name: string) => {
-    setExpandedTools(prev => {
+    setExpandedTools((prev) => {
       const next = new Set(prev);
       if (next.has(name)) {
         next.delete(name);
@@ -71,32 +80,64 @@ export function ServerManagerShadcn() {
   };
 
   const handleReconnect = async (name: string) => {
-    const server = servers.find(s => s.name === name);
+    const server = servers.find((s) => s.name === name);
     if (!server) return;
 
-    setLoadingServers(prev => new Set(prev).add(name));
+    setLoadingServers((prev) => new Set(prev).add(name));
     updateServerStatus(name, ServerStatus.CONNECTING);
 
     try {
-      const response = await fetch('/api/mcp/connect-v2', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name }),
-      });
+      // Check if this is a remote SSE server
+      const isRemoteSSE =
+        server.config?.type === "remote-sse" || server.config?.url;
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to reconnect');
+      if (isRemoteSSE) {
+        // For remote SSE servers, use the connect-sse endpoint
+        const response = await fetch("/api/mcp/connect-sse", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: server.name,
+            url: server.config.url,
+            authToken: server.config.authToken,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Failed to reconnect");
+        }
+
+        const data = await response.json();
+        addServer(data.server);
+      } else {
+        // For local servers, use the connect-v2 endpoint
+        const response = await fetch("/api/mcp/connect-v2", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Failed to reconnect");
+        }
+
+        const data = await response.json();
+        addServer(data.server);
       }
-
-      const data = await response.json();
-      addServer(data.server);
     } catch (error) {
-      updateServerStatus(name, ServerStatus.ERROR, error instanceof Error ? error.message : 'Failed to reconnect');
+      updateServerStatus(
+        name,
+        ServerStatus.ERROR,
+        error instanceof Error ? error.message : "Failed to reconnect",
+      );
     } finally {
-      setLoadingServers(prev => {
+      setLoadingServers((prev) => {
         const next = new Set(prev);
         next.delete(name);
         return next;
@@ -105,17 +146,17 @@ export function ServerManagerShadcn() {
   };
 
   const handleConnect = async (name: string) => {
-    const server = servers.find(s => s.name === name);
+    const server = servers.find((s) => s.name === name);
     if (!server) return;
 
-    setLoadingServers(prev => new Set(prev).add(name));
+    setLoadingServers((prev) => new Set(prev).add(name));
     updateServerStatus(name, ServerStatus.CONNECTING);
 
     try {
-      const response = await fetch('/api/mcp/connect-v2', {
-        method: 'POST',
+      const response = await fetch("/api/mcp/connect-v2", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           name,
@@ -125,15 +166,19 @@ export function ServerManagerShadcn() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to connect');
+        throw new Error(error.error || "Failed to connect");
       }
 
       const data = await response.json();
       addServer(data.server);
     } catch (error) {
-      updateServerStatus(name, ServerStatus.ERROR, error instanceof Error ? error.message : 'Failed to connect');
+      updateServerStatus(
+        name,
+        ServerStatus.ERROR,
+        error instanceof Error ? error.message : "Failed to connect",
+      );
     } finally {
-      setLoadingServers(prev => {
+      setLoadingServers((prev) => {
         const next = new Set(prev);
         next.delete(name);
         return next;
@@ -142,24 +187,31 @@ export function ServerManagerShadcn() {
   };
 
   const handleDisconnect = async (name: string) => {
-    setLoadingServers(prev => new Set(prev).add(name));
+    setLoadingServers((prev) => new Set(prev).add(name));
 
     try {
-      const response = await fetch(`/api/mcp/connect-v2?name=${encodeURIComponent(name)}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(
+        `/api/mcp/connect-v2?name=${encodeURIComponent(name)}`,
+        {
+          method: "DELETE",
+        },
+      );
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to disconnect');
+        throw new Error(error.error || "Failed to disconnect");
       }
 
       updateServerStatus(name, ServerStatus.DISCONNECTED);
     } catch (error) {
-      console.error('Failed to disconnect:', error);
-      updateServerStatus(name, ServerStatus.ERROR, error instanceof Error ? error.message : 'Failed to disconnect');
+      console.error("Failed to disconnect:", error);
+      updateServerStatus(
+        name,
+        ServerStatus.ERROR,
+        error instanceof Error ? error.message : "Failed to disconnect",
+      );
     } finally {
-      setLoadingServers(prev => {
+      setLoadingServers((prev) => {
         const next = new Set(prev);
         next.delete(name);
         return next;
@@ -168,7 +220,7 @@ export function ServerManagerShadcn() {
   };
 
   const handleRemove = async (name: string) => {
-    const server = servers.find(s => s.name === name);
+    const server = servers.find((s) => s.name === name);
     if (server && server.status === ServerStatus.CONNECTED) {
       await handleDisconnect(name);
     }
@@ -179,7 +231,7 @@ export function ServerManagerShadcn() {
     if (isLoading) {
       return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
     }
-    
+
     switch (status) {
       case ServerStatus.CONNECTED:
         return <PlugZap className="h-4 w-4 text-green-600" />;
@@ -197,7 +249,10 @@ export function ServerManagerShadcn() {
   };
 
   const getStatusBadge = (status: ServerStatus) => {
-    const variants: Record<ServerStatus, "default" | "secondary" | "destructive" | "outline"> = {
+    const variants: Record<
+      ServerStatus,
+      "default" | "secondary" | "destructive" | "outline"
+    > = {
       [ServerStatus.CONNECTED]: "default",
       [ServerStatus.CONNECTING]: "secondary",
       [ServerStatus.DISCONNECTED]: "outline",
@@ -256,7 +311,11 @@ export function ServerManagerShadcn() {
                     <div className="flex items-center justify-between p-3">
                       <div className="flex items-center gap-3">
                         <CollapsibleTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                          >
                             {isExpanded ? (
                               <ChevronDown className="h-4 w-4" />
                             ) : (
@@ -264,45 +323,59 @@ export function ServerManagerShadcn() {
                             )}
                           </Button>
                         </CollapsibleTrigger>
-                        
+
                         {getStatusIcon(server.status, isLoading)}
-                        
+
                         <div className="flex flex-col">
-                          <span className="text-sm font-medium">{server.name}</span>
+                          <span className="text-sm font-medium">
+                            {server.name}
+                          </span>
                           {server.error && (
-                            <span className="text-xs text-destructive">{server.error}</span>
+                            <span className="text-xs text-destructive">
+                              {server.error}
+                            </span>
                           )}
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2">
                         {getStatusBadge(server.status)}
-                        
+
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                            >
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             {server.status === ServerStatus.CONNECTED ? (
-                              <DropdownMenuItem onClick={() => handleDisconnect(server.name)}>
+                              <DropdownMenuItem
+                                onClick={() => handleDisconnect(server.name)}
+                              >
                                 <Plug className="mr-2 h-4 w-4" />
                                 Disconnect
                               </DropdownMenuItem>
                             ) : server.status === ServerStatus.ERROR ? (
-                              <DropdownMenuItem onClick={() => handleReconnect(server.name)}>
+                              <DropdownMenuItem
+                                onClick={() => handleReconnect(server.name)}
+                              >
                                 <RefreshCw className="mr-2 h-4 w-4" />
                                 Reconnect
                               </DropdownMenuItem>
                             ) : (
-                              <DropdownMenuItem onClick={() => handleConnect(server.name)}>
+                              <DropdownMenuItem
+                                onClick={() => handleConnect(server.name)}
+                              >
                                 <PlugZap className="mr-2 h-4 w-4" />
                                 Connect
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => handleRemove(server.name)}
                               className="text-destructive"
                             >
@@ -318,81 +391,117 @@ export function ServerManagerShadcn() {
                       {server.capabilities && (
                         <div className="border-t px-3 py-3 space-y-3">
                           {/* Tools */}
-                          {server.capabilities.tools && server.capabilities.tools.length > 0 && (
-                            <div>
-                              <button
-                                onClick={() => toggleToolsExpanded(server.name)}
-                                className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-2 hover:text-foreground transition-colors w-full text-left"
-                              >
-                                {expandedTools.has(server.name) ? (
-                                  <ChevronDown className="h-3 w-3" />
-                                ) : (
-                                  <ChevronRight className="h-3 w-3" />
-                                )}
-                                <Wrench className="h-3 w-3" />
-                                Tools ({server.capabilities.tools.length})
-                              </button>
-                              {expandedTools.has(server.name) && (
-                                <ScrollArea className="h-[200px] rounded-md border bg-muted/20 p-2">
-                                  <div className="space-y-1">
-                                    {server.capabilities.tools.map((tool) => (
-                                      <div key={tool.name} className="group hover:bg-muted/50 rounded px-2 py-1 transition-colors">
-                                        <div className="text-xs font-mono text-primary">
-                                          {tool.name}
-                                        </div>
-                                        {tool.description && (
-                                          <div className="text-xs text-muted-foreground mt-0.5">
-                                            <div className="break-words overflow-wrap-anywhere word-break">
-                                              <ReactMarkdown
-                                                remarkPlugins={[remarkGfm]}
-                                                components={{
-                                                  p: ({ children }) => <p className="break-words whitespace-pre-wrap">{children}</p>,
-                                                  strong: ({ children }) => <strong className="font-semibold break-words">{children}</strong>,
-                                                  code: ({ children }) => (
-                                                    <code className="bg-background px-1 py-0.5 rounded break-all whitespace-pre-wrap">{children}</code>
-                                                  ),
-                                                  ul: ({ children }) => <ul className="list-disc pl-3">{children}</ul>,
-                                                  ol: ({ children }) => <ol className="list-decimal pl-3">{children}</ol>,
-                                                  li: ({ children }) => <li className="mb-0.5 break-words">{children}</li>,
-                                                  a: ({ children, href }) => (
-                                                    <a href={href} className="text-primary hover:underline break-all" target="_blank" rel="noopener noreferrer">
-                                                      {children}
-                                                    </a>
-                                                  ),
-                                                }}
-                                              >
-                                                {tool.description}
-                                              </ReactMarkdown>
-                                            </div>
+                          {server.capabilities.tools &&
+                            server.capabilities.tools.length > 0 && (
+                              <div>
+                                <button
+                                  onClick={() =>
+                                    toggleToolsExpanded(server.name)
+                                  }
+                                  className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-2 hover:text-foreground transition-colors w-full text-left"
+                                >
+                                  {expandedTools.has(server.name) ? (
+                                    <ChevronDown className="h-3 w-3" />
+                                  ) : (
+                                    <ChevronRight className="h-3 w-3" />
+                                  )}
+                                  <Wrench className="h-3 w-3" />
+                                  Tools ({server.capabilities.tools.length})
+                                </button>
+                                {expandedTools.has(server.name) && (
+                                  <ScrollArea className="h-[200px] rounded-md border bg-muted/20 p-2">
+                                    <div className="space-y-1">
+                                      {server.capabilities.tools.map((tool) => (
+                                        <div
+                                          key={tool.name}
+                                          className="group hover:bg-muted/50 rounded px-2 py-1 transition-colors"
+                                        >
+                                          <div className="text-xs font-mono text-primary">
+                                            {tool.name}
                                           </div>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                </ScrollArea>
-                              )}
-                            </div>
-                          )}
+                                          {tool.description && (
+                                            <div className="text-xs text-muted-foreground mt-0.5">
+                                              <div className="break-words overflow-wrap-anywhere word-break">
+                                                <ReactMarkdown
+                                                  remarkPlugins={[remarkGfm]}
+                                                  components={{
+                                                    p: ({ children }) => (
+                                                      <p className="break-words whitespace-pre-wrap">
+                                                        {children}
+                                                      </p>
+                                                    ),
+                                                    strong: ({ children }) => (
+                                                      <strong className="font-semibold break-words">
+                                                        {children}
+                                                      </strong>
+                                                    ),
+                                                    code: ({ children }) => (
+                                                      <code className="bg-background px-1 py-0.5 rounded break-all whitespace-pre-wrap">
+                                                        {children}
+                                                      </code>
+                                                    ),
+                                                    ul: ({ children }) => (
+                                                      <ul className="list-disc pl-3">
+                                                        {children}
+                                                      </ul>
+                                                    ),
+                                                    ol: ({ children }) => (
+                                                      <ol className="list-decimal pl-3">
+                                                        {children}
+                                                      </ol>
+                                                    ),
+                                                    li: ({ children }) => (
+                                                      <li className="mb-0.5 break-words">
+                                                        {children}
+                                                      </li>
+                                                    ),
+                                                    a: ({ children, href }) => (
+                                                      <a
+                                                        href={href}
+                                                        className="text-primary hover:underline break-all"
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                      >
+                                                        {children}
+                                                      </a>
+                                                    ),
+                                                  }}
+                                                >
+                                                  {tool.description}
+                                                </ReactMarkdown>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </ScrollArea>
+                                )}
+                              </div>
+                            )}
 
                           {/* Resources */}
-                          {server.capabilities.resources && server.capabilities.resources.length > 0 && (
-                            <div>
-                              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-2">
-                                <FileText className="h-3 w-3" />
-                                Resources ({server.capabilities.resources.length})
+                          {server.capabilities.resources &&
+                            server.capabilities.resources.length > 0 && (
+                              <div>
+                                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-2">
+                                  <FileText className="h-3 w-3" />
+                                  Resources (
+                                  {server.capabilities.resources.length})
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )}
 
                           {/* Prompts */}
-                          {server.capabilities.prompts && server.capabilities.prompts.length > 0 && (
-                            <div>
-                              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-2">
-                                <MessageSquare className="h-3 w-3" />
-                                Prompts ({server.capabilities.prompts.length})
+                          {server.capabilities.prompts &&
+                            server.capabilities.prompts.length > 0 && (
+                              <div>
+                                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-2">
+                                  <MessageSquare className="h-3 w-3" />
+                                  Prompts ({server.capabilities.prompts.length})
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )}
                         </div>
                       )}
                     </CollapsibleContent>

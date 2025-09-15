@@ -1,10 +1,27 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 // MCP Server Configuration Schema
 export const MCPServerConfigSchema = z.object({
-  command: z.string(),
+  command: z.string().optional(), // Made optional for remote servers
   args: z.array(z.string()).optional(),
   env: z.record(z.string()).optional(),
+  headers: z.record(z.string()).optional(),
+  // Remote SSE server properties
+  type: z.enum(["stdio", "remote-sse"]).optional(),
+  url: z.string().optional(),
+  authToken: z.string().optional(),
+  oauth: z
+    .object({
+      authorizationEndpoint: z.string().url(),
+      tokenEndpoint: z.string().url(),
+      clientId: z.string(),
+      clientSecret: z.string().optional(),
+      scope: z.string().optional(),
+      usePKCE: z.boolean().optional().default(true),
+      grantType: z.string().optional(),
+      responseType: z.string().optional(),
+    })
+    .optional(),
 });
 
 export type MCPServerConfig = z.infer<typeof MCPServerConfigSchema>;
@@ -18,11 +35,11 @@ export type MCPConfiguration = z.infer<typeof MCPConfigurationSchema>;
 
 // Server Status
 export enum ServerStatus {
-  DISCONNECTED = 'disconnected',
-  CONNECTING = 'connecting',
-  CONNECTED = 'connected',
-  ERROR = 'error',
-  PERMISSION_REQUIRED = 'permission_required',
+  DISCONNECTED = "disconnected",
+  CONNECTING = "connecting",
+  CONNECTED = "connected",
+  ERROR = "error",
+  PERMISSION_REQUIRED = "permission_required",
 }
 
 // Server State
@@ -72,7 +89,7 @@ export interface PromptDefinition {
 // Chat Message
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant' | 'system' | 'tool';
+  role: "user" | "assistant" | "system" | "tool";
   content: string;
   timestamp: Date;
   toolCalls?: ToolCall[];
@@ -103,9 +120,9 @@ export interface PermissionRequest {
 
 // Transport Type
 export enum TransportType {
-  STDIO = 'stdio',
-  HTTP = 'http',
-  SSE = 'sse',
+  STDIO = "stdio",
+  HTTP = "http",
+  SSE = "sse",
 }
 
 // MCP Client Options
