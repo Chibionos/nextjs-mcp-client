@@ -64,51 +64,94 @@ export async function POST(request: NextRequest) {
     // Connect the client to the transport
     await client.connect(sseTransport);
 
-    // Initialize the connection - try to list tools to verify connection
+    // Initialize the connection and discover capabilities
     let tools: any = null;
+    let resources: any = null;
+    let prompts: any = null;
+
+    // Try to list tools
     try {
       tools = await client.request(
         { method: "tools/list", params: {} },
         ListToolsResultSchema,
       );
       console.log(
-        `[MCP] Successfully connected to ${name}, tools:`,
+        `[MCP] Successfully listed tools for ${name}:`,
         tools?.tools?.length || 0,
       );
     } catch (error) {
       console.warn(
-        `[MCP] Could not list tools for ${name}, but connection may still work:`,
+        `[MCP] Could not list tools for ${name}:`,
         error,
       );
     }
 
-    // For now, just store the client in the manager manually
-    // TODO: Update the client manager to properly handle remote SSE clients
-    clientManager["clients"].set(name, client);
-    clientManager["updateServerState"](name, {
+    // Try to list resources (optional capability)
+    try {
+      resources = await client.listResources();
+      console.log(
+        `[MCP] Listed resources for ${name}:`,
+        resources?.resources?.length || 0,
+      );
+    } catch (error: any) {
+      // Resources might not be supported
+      if (error?.code !== -32601) {
+        console.warn(`[MCP] Could not list resources for ${name}:`, error);
+      }
+    }
+
+    // Try to list prompts (optional capability)
+    try {
+      prompts = await client.listPrompts();
+      console.log(
+        `[MCP] Listed prompts for ${name}:`,
+        prompts?.prompts?.length || 0,
+      );
+    } catch (error: any) {
+      // Prompts might not be supported
+      if (error?.code !== -32601) {
+        console.warn(`[MCP] Could not list prompts for ${name}:`, error);
+      }
+    }
+
+    // Build capabilities object
+    const capabilities: any = {};
+
+    if (tools?.tools && tools.tools.length > 0) {
+      capabilities.tools = tools.tools;
+    }
+
+    if (resources?.resources && resources.resources.length > 0) {
+      capabilities.resources = resources.resources;
+    }
+
+    if (prompts?.prompts && prompts.prompts.length > 0) {
+      capabilities.prompts = prompts.prompts;
+    }
+
+    // Store the server state in the manager
+    const serverState = {
       name,
       config: {
-        command: url, // Store URL in command for now
-        headers: authToken ? { Authorization: `Bearer ***` } : undefined,
+        type: "remote-sse" as const,
+        url,
+        authToken: authToken ? "***" : undefined,
       } as any,
       status: ServerStatus.CONNECTED,
-      capabilities: {
-        tools: tools?.tools || [],
-      },
-    });
+      capabilities,
+    };
+
+    // Store the client and state in the manager manually
+    // TODO: Update the client manager to properly handle remote SSE clients
+    clientManager["clients"].set(name, client);
+    clientManager["serverStates"].set(name, serverState);
+
+    // Call updateServerState to trigger listeners
+    clientManager["updateServerState"](name, serverState);
 
     return NextResponse.json({
       success: true,
-      server: {
-        name,
-        config: {
-          type: "remote-sse",
-          url,
-          authToken: authToken ? "***" : undefined,
-        },
-        status: ServerStatus.CONNECTED,
-        toolCount: tools.tools?.length || 0,
-      },
+      server: serverState,
     });
   } catch (error) {
     console.error("[MCP] Failed to connect to SSE server:", error);
