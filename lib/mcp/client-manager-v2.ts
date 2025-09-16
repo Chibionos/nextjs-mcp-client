@@ -461,6 +461,13 @@ export class MCPClientManagerV2 {
   }
 
   /**
+   * Get servers as a Map (for compatibility with existing code)
+   */
+  getServers(): Map<string, ServerState> {
+    return new Map(this.serverStates);
+  }
+
+  /**
    * Check if a server is connected
    */
   isServerConnected(name: string): boolean {
