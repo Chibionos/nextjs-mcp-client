@@ -9,6 +9,7 @@ import {
   Github,
   Globe,
   MessageSquare,
+  Mic,
   Plug,
   RefreshCw,
   Server,
@@ -24,6 +25,7 @@ import { PermissionDialog } from "@/components/permission-dialog";
 import { RemoteMCPLibrarySimple } from "@/components/remote-mcp-library-simple";
 import { ServerManagerShadcn } from "@/components/server-manager-shadcn";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SimpleVoiceClient } from "@/components/simple-voice-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +38,12 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useMCPStore } from "@/lib/stores/mcp-store";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +51,7 @@ export default function Home() {
   const { servers } = useMCPStore();
   const [activeTab, setActiveTab] = useState("chat");
   const [githubStars, setGithubStars] = useState(1);
+  const [showVoiceDialog, setShowVoiceDialog] = useState(false);
 
   const connectedServers = servers.filter((s) => s.status === "connected");
   const totalTools = connectedServers.reduce(
@@ -178,6 +187,28 @@ export default function Home() {
 
       {/* Permission Dialog */}
       <PermissionDialog />
+
+      {/* Voice Agent Dialog */}
+      <Dialog open={showVoiceDialog} onOpenChange={setShowVoiceDialog}>
+        <DialogContent className="max-w-4xl h-[85vh] p-0 overflow-hidden flex flex-col">
+          <DialogHeader className="sr-only">
+            <DialogTitle>OpenAI Realtime Voice Assistant</DialogTitle>
+          </DialogHeader>
+          <SimpleVoiceClient />
+        </DialogContent>
+      </Dialog>
+
+      {/* Talk Button - Fixed at bottom */}
+      <div className="fixed bottom-4 right-4 z-50">
+        <Button
+          size="lg"
+          className="rounded-full h-14 px-6 shadow-lg"
+          onClick={() => setShowVoiceDialog(true)}
+        >
+          <Mic className="mr-2 h-5 w-5" />
+          Talk
+        </Button>
+      </div>
     </div>
   );
 }

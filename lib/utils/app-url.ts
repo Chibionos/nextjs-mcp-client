@@ -6,12 +6,9 @@
 export function getAppUrl(): string {
   // In server context, always use the environment variable
   if (typeof window === "undefined") {
-    return (
-      process.env.NEXT_PUBLIC_APP_URL ||
-      process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000"
-    );
+    return process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000";
   }
 
   // In browser context, prefer environment variable but fall back to origin

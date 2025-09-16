@@ -47,14 +47,16 @@ function OAuthCallbackContent() {
 
 export default function OAuthCallbackPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="text-center p-8 rounded-lg border bg-card">
-          <h1 className="text-2xl font-bold mb-4">Loading...</h1>
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen bg-background">
+          <div className="text-center p-8 rounded-lg border bg-card">
+            <h1 className="text-2xl font-bold mb-4">Loading...</h1>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <OAuthCallbackContent />
     </Suspense>
   );
