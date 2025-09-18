@@ -687,41 +687,24 @@ export function RemoteMCPLibrarySimple() {
     setIsConnecting(true);
 
     try {
-      // Create a direct SSE connection configuration
-      const config: MCPServerConfig = {
-        type: "remote-sse",
-        url: server.url,
-        name: server.name,
-        authToken: token || undefined,
-      } as any;
-
-      // Add server to store
-      addServer({
-        name: server.name,
-        config,
-        status: ServerStatus.DISCONNECTED,
-      });
-
-      // Log what we're about to send
-      const requestPayload = {
-        name: server.name,
-        url: server.url,
-        authToken: token || undefined,
-      };
       console.log(
-        "[connectDirectly] Sending to /api/mcp/connect-sse:",
-        requestPayload,
-      );
-      console.log(
-        "[connectDirectly] authToken in payload:",
-        requestPayload.authToken,
+        "[connectDirectly] Connecting to server with config:",
+        {
+          name: server.name,
+          url: server.url,
+          hasAuthToken: !!token
+        }
       );
 
-      // Connect to server using our SSE endpoint
+      // Connect to server using the connect-sse endpoint
       const response = await fetch("/api/mcp/connect-sse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestPayload),
+        body: JSON.stringify({
+          name: server.name,
+          url: server.url,
+          authToken: token || undefined,
+        }),
       });
 
       if (!response.ok) {
@@ -730,7 +713,9 @@ export function RemoteMCPLibrarySimple() {
       }
 
       const data = await response.json();
-      addServer(data.server);
+      if (data.server) {
+        addServer(data.server);
+      }
 
       toast.success(`Connected to "${server.name}"!`);
       setOpen(false);
